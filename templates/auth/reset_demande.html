@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+{% block title %}Récupération Mot de Passe - InfraControl{% endblock %}
+
+{% block content %}
+<style>
+    /* --- 1. THEME "UPLINK" (TEAL/CYAN) --- */
+    :root {
+        --bg-deep: #042f2e; /* Fond vert/bleu très sombre */
+        --neon-teal: #14b8a6; /* Turquoise */
+        --neon-cyan: #06b6d4;
+        --text-white: #f0fdfa;
+        --card-glass: rgba(17, 34, 39, 0.9);
+        --input-dark: rgba(0, 0, 0, 0.5);
+    }
+
+    /* Force le texte blanc */
+    .password-reset-wrapper {
+        color: var(--text-white);
+        position: relative;
+        z-index: 10;
+        min-height: 80vh;
+        display: flex;
+        align-items: center;
+    }
+
+    h4, p, label, a { color: var(--text-white) !important; }
+
+    /* --- 2. BACKGROUND DESKTOP (UPLINK STREAM) --- */
+    #stream-canvas {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        background: #020617;
+    }
+
+    /* --- 3. BACKGROUND MOBILE (AURORA TECH) --- */
+    .mobile-aurora-bg {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        background: linear-gradient(0deg, #0f172a, #134e4a);
+        overflow: hidden;
+    }
+
+    .aurora-wave {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 200%;
+        height: 100%;
+        background: linear-gradient(to right, transparent 0%, rgba(20, 184, 166, 0.2) 50%, transparent 100%);
+        transform: skewX(-20deg);
+        animation: auroraMove 8s infinite linear;
+    }
+
+    .wave-2 {
+        animation-duration: 12s;
+        opacity: 0.5;
+        background: linear-gradient(to right, transparent 0%, rgba(6, 182, 212, 0.15) 50%, transparent 100%);
+    }
+
+    @keyframes auroraMove {
+        0% { transform: translateX(-50%) skewX(-20deg); }
+        100% { transform: translateX(0%) skewX(-20deg); }
+    }
+
+    /* --- 4. CARTE & UI --- */
+    .reset-card {
+        background: var(--card-glass);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(20, 184, 166, 0.3);
+        border-radius: 12px;
+        box-shadow: 0 0 40px rgba(20, 184, 166, 0.1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Barre de progression décorative en haut */
+    .loading-bar {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 4px;
+        background: rgba(255,255,255,0.1);
+    }
+    .loading-bar::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; width: 30%; height: 100%;
+        background: var(--neon-teal);
+        box-shadow: 0 0 10px var(--neon-teal);
+        animation: loadingScan 3s ease-in-out infinite;
+    }
+
+    @keyframes loadingScan {
+        0% { left: -30%; }
+        50% { left: 100%; }
+        100% { left: 100%; }
+    }
+
+    /* Icone Key Animée */
+    .key-icon-container {
+        width: 70px; height: 70px;
+        background: rgba(20, 184, 166, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        border: 1px solid var(--neon-teal);
+    }
+
+    /* Inputs */
+    .form-control {
+        background-color: var(--input-dark) !important;
+        border: 1px solid #115e59;
+        color: var(--neon-teal) !important;
+        font-family: 'Consolas', monospace;
+    }
+
+    .form-control:focus {
+        border-color: var(--neon-teal);
+        box-shadow: 0 0 10px rgba(20, 184, 166, 0.3);
+        background-color: black !important;
+    }
+
+    /* Bouton Envoi */
+    .btn-recover {
+        background: linear-gradient(90deg, #0d9488 0%, #14b8a6 100%);
+        border: none;
+        color: white;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 1px;
+        transition: 0.3s;
+    }
+    
+    .btn-recover:hover {
+        box-shadow: 0 0 20px rgba(20, 184, 166, 0.5);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+</style>
+
+<canvas id="stream-canvas" class="d-none d-lg-block"></canvas>
+
+<div class="mobile-aurora-bg d-lg-none">
+    <div class="aurora-wave"></div>
+    <div class="aurora-wave wave-2"></div>
+</div>
+
+<div class="container password-reset-wrapper">
+    <div class="row justify-content-center w-100">
+        <div class="col-md-6 col-lg-5">
+            
+            <div class="card reset-card p-4">
+                <div class="loading-bar"></div>
+                
+                <div class="card-body">
+                    <div class="text-center">
+                        <div class="key-icon-container">
+                            <i class="fas fa-key fa-2x" style="color: var(--neon-teal);"></i>
+                        </div>
+                        <h4 class="fw-bold mb-2">RESTORE ACCESS</h4>
+                        <p class="text-white-50 small mb-4">
+                            Initialisation de la procédure de récupération.<br>
+                            Un lien sécurisé sera transmis au terminal indiqué.
+                        </p>
+                    </div>
+
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-4">
+                            <label class="form-label small text-uppercase text-muted">Identifiant Email</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-transparent border-secondary text-muted"><i class="fas fa-envelope"></i></span>
+                                <input type="email" name="email" class="form-control" placeholder="admin@network.local" required>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-recover w-100 py-2">
+                            <i class="fas fa-paper-plane me-2"></i> Initialiser le lien
+                        </button>
+                    </form>
+
+                    <div class="text-center mt-4 pt-3 border-top border-secondary border-opacity-25">
+                        <a href="{% url 'connexion' %}" class="text-decoration-none small text-muted hover-white">
+                            <i class="fas fa-sign-in-alt me-1"></i> Identifiants retrouvés ? Connexion
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const canvas = document.getElementById('stream-canvas');
+    if (canvas && window.innerWidth >= 992) {
+        const ctx = canvas.getContext('2d');
+        let w, h;
+        
+        function resize() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Particules "Data Stream" qui montent
+        const streams = [];
+        const maxStreams = 50;
+
+        class DataStream {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * w;
+                this.y = h + Math.random() * 200; // Commence en bas, hors écran
+                this.speed = Math.random() * 3 + 2; // Vitesse de montée
+                this.length = Math.random() * 50 + 20; // Longueur du trait
+                this.width = Math.random() * 2 + 1;
+                this.opacity = Math.random() * 0.5 + 0.1;
+                this.color = Math.random() > 0.8 ? '#06b6d4' : '#14b8a6'; // Cyan ou Teal
+            }
+
+            update() {
+                this.y -= this.speed; // Monte vers le haut
+                
+                // Reset quand sort en haut
+                if (this.y + this.length < 0) {
+                    this.reset();
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                // Dégradé pour faire une traînée
+                const gradient = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.length);
+                gradient.addColorStop(0, `rgba(20, 184, 166, 0)`);
+                gradient.addColorStop(1, `rgba(20, 184, 166, ${this.opacity})`);
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(this.x, this.y, this.width, this.length);
+            }
+        }
+
+        // Init
+        for(let i=0; i<maxStreams; i++) streams.push(new DataStream());
+
+        function animate() {
+            ctx.clearRect(0, 0, w, h);
+            
+            streams.forEach(s => {
+                s.update();
+                s.draw();
+            });
+            
+            requestAnimationFrame(animate);
+        }
+        animate();
+    }
+});
+</script>
+{% endblock %}

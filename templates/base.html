@@ -1,0 +1,732 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}InfraControl{% endblock %}</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css"/>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}">
+
+    <style>
+        :root {
+            /* Palette Tech Dark */
+            --bg-deep: #050a10;
+            /* Fond très sombre */
+            --bg-glass: rgba(15, 23, 42, 0.85);
+            /* Navbar semi-transparente */
+            --text-main: #e2e8f0;
+            /* Blanc cassé (plus doux pour les yeux) */
+            --text-muted: #94a3b8;
+            --accent-cyan: #0ea5e9;
+            /* Cyan électrique */
+            --accent-hover: #38bdf8;
+            --border-tech: rgba(14, 165, 233, 0.3);
+            --driver-overlay-color: rgba(0, 0, 0, 0.85);
+        }
+
+        /* 1. CORRECTION LAYOUT & TEXTE BLANC */
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            /* Rend tout le texte blanc par défaut */
+            font-family: "Segoe UI", "Roboto", sans-serif;
+
+            /* Sticky Footer Fix : Force la disposition verticale */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding-top: 80px;
+            /* Ajout padding pour navbar fixe */
+        }
+
+        /* Le Main prend tout l'espace disponible pour pousser le footer */
+        main {
+            flex: 1;
+            position: relative;
+            /* Pour que les background absolus des enfants se positionnent bien */
+            width: 100%;
+        }
+
+        /* 2. NAVBAR TECH STYLE */
+        .navbar-tech {
+            background-color: var(--bg-glass) !important;
+            backdrop-filter: blur(12px);
+            /* Effet verre dépoli */
+            border-bottom: 1px solid var(--border-tech);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            padding: 0.8rem 1rem;
+        }
+
+        .navbar-brand {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            color: var(--text-main) !important;
+            letter-spacing: -1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-highlight {
+            color: var(--accent-cyan);
+        }
+
+        .nav-link {
+            color: var(--text-muted) !important;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            color: var(--accent-cyan) !important;
+            text-shadow: 0 0 8px rgba(14, 165, 233, 0.4);
+        }
+
+        /* Petit point lumineux sous le lien actif au survol */
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: var(--accent-cyan);
+            transition: width 0.3s ease, left 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            width: 80%;
+            left: 10%;
+        }
+
+        /* Bouton Hamburger Tech */
+        .navbar-toggler {
+            border: 1px solid var(--accent-cyan);
+            padding: 0.25rem 0.5rem;
+        }
+
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml;charset=utf8,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke='rgba(14, 165, 233, 1)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E") !important;
+        }
+
+        /* 3. MESSAGES (ALERTS) */
+        .messages-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 9999;
+            width: 350px;
+            pointer-events: none;
+            /* Laisse cliquer au travers si vide */
+        }
+
+        .alert-tech {
+            pointer-events: auto;
+            background: rgba(15, 23, 42, 0.95);
+            border-left: 4px solid var(--accent-cyan);
+            color: white;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        /* 4. FOOTER MINIMALISTE */
+        footer {
+            background: rgba(2, 6, 23, 0.9);
+            border-top: 1px solid #1e293b;
+            color: var(--text-muted);
+            padding: 20px 0;
+            font-size: 0.85rem;
+            margin-top: auto;
+            /* Pousse le footer en bas */
+            z-index: 10;
+        }
+
+        .status-dot {
+            height: 8px;
+            width: 8px;
+            background-color: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 5px #10b981;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    {% if request.user.is_authenticated and request.user.profil.est_gelé %}
+    <div class="tech-alert-floating">
+        <div class="scan-line"></div>
+
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <div class="alert-icon-box">
+                    <i class="fas fa-snowflake fa-spin" style="animation-duration: 10s;"></i>
+                </div>
+
+                <div class="ms-3 text-start">
+                    <h6 class="m-0 fw-bold text-uppercase text-danger" style="letter-spacing: 1px; font-size: 0.8rem;">
+                        Status: HIBERNATION
+                    </h6>
+                    <p class="m-0 text-white small" style="font-size: 0.75rem; opacity: 0.8;">
+                        Compte en cours de suppression.
+                    </p>
+                </div>
+            </div>
+
+            <a href="{% url 'recuperer_compte' %}" class="btn-restore ms-3">
+                <span class="d-none d-sm-inline">RÉCUPÉRER</span>
+                <i class="fas fa-undo-alt d-sm-none"></i> </a>
+        </div>
+    </div>
+
+    <style>
+        /* --- STYLE DESKTOP (Haut Gauche) --- */
+        .tech-alert-floating {
+            position: fixed;
+            top: 90px;
+            left: 20px;
+            /* CORRECTION : z-index inférieur à la navbar (souvent 1030) */
+            z-index: 1020;
+
+            background: rgba(30, 5, 5, 0.9);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+
+            border: 1px solid #ef4444;
+            border-left: 4px solid #ef4444;
+            border-radius: 8px;
+
+            padding: 12px 15px;
+            min-width: 320px;
+
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            animation: slideIn 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            overflow: hidden;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Ligne de scan */
+        .tech-alert-floating .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: #ef4444;
+            box-shadow: 0 0 10px #ef4444;
+            opacity: 0.5;
+            animation: scanAlert 3s ease-in-out infinite;
+        }
+
+        @keyframes scanAlert {
+            0% {
+                left: 0;
+                opacity: 0;
+            }
+
+            100% {
+                left: 100%;
+                opacity: 0;
+            }
+        }
+
+        /* Icône */
+        .alert-icon-box {
+            width: 35px;
+            height: 35px;
+            background: rgba(239, 68, 68, 0.15);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            flex-shrink: 0;
+            /* Empêche l'écrasement sur mobile */
+        }
+
+        /* Bouton */
+        .btn-restore {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid #ef4444;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-decoration: none;
+            transition: 0.3s;
+            font-family: 'Courier New', monospace;
+        }
+
+        .btn-restore:hover {
+            background: #ef4444;
+            color: white;
+        }
+
+        /* --- CORRECTION MOBILE (Bas de l'écran) --- */
+        @media (max-width: 991px) {
+            .tech-alert-floating {
+                top: auto;
+                /* On annule la position haute */
+                bottom: 20px;
+                /* On place en BAS */
+                left: 15px;
+                right: 15px;
+                /* Prend toute la largeur */
+
+                /* Animation différente pour le mobile (vient du bas) */
+                animation: slideUp 0.5s ease-out;
+
+                /* Design un peu plus compact */
+                padding: 10px;
+                border-left: 1px solid #ef4444;
+                /* Bordure uniforme */
+                border-top: 2px solid #ef4444;
+                /* Accent en haut */
+            }
+
+            @keyframes slideUp {
+                from {
+                    transform: translateY(100%);
+                    opacity: 0;
+                }
+
+                to {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+            }
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        #notif-count.alert {
+            animation: blink 1s infinite;
+        }
+    </style>
+    {% endif %}
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-tech fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-network-wired brand-highlight"></i>
+                INFRA<span class="brand-highlight">CONTROL</span>
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <!-- Main Menu -->
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a href="{% url 'dashboard' %}" class="nav-link">
+                            <i class="nav-icon fas fa-tachometer-alt me-1"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'wifi:dashboard' %}" class="nav-link">
+                            <i class="nav-icon fas fa-wifi me-1"></i> WiFi
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'liste_equipements' %}" class="nav-link">
+                            <i class="nav-icon fas fa-server me-1"></i> Supervision
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'network_map' %}" class="nav-link">
+                            <i class="nav-icon fas fa-project-diagram me-1"></i> Topologie
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/discovery/" class="nav-link">
+                            <i class="nav-icon fas fa-search me-1"></i> Découverte
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/remediation/" class="nav-link">
+                            <i class="nav-icon fas fa-tools me-1"></i> Remédiation
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/reports/" class="nav-link">
+                            <i class="nav-icon fas fa-file-pdf me-1"></i> Rapports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/training/" class="nav-link">
+                            <i class="nav-icon fas fa-graduation-cap me-1"></i> Formation
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav ms-auto align-items-center">
+                    {% if user.is_authenticated %}
+                    <li class="nav-item ms-lg-3">
+                        <a class="nav-link" href="{% url 'profile' %}">
+                            <i class="fas fa-user-astronaut me-1"></i> Mon profil
+                        </a>
+                    </li>
+                    <li class="nav-item ms-lg-2">
+                        <a class="nav-link text-danger" href="{% url 'deconnexion' %}" style="opacity: 0.8;">
+                            <i class="fas fa-power-off"></i>
+                        </a>
+                    </li>
+                    <li class="nav-item ms-lg-2">
+                        <a href="javascript:void(0)" id="start-tuto" class="nav-link text-info" title="Aide / Tutoriel">
+                            <i class="fas fa-question-circle fa-lg"></i>
+                        </a>
+                    </li>
+                    <li class="nav-item me-3">
+                        <a href="{% url 'liste_incidents' %}" class="nav-link position-relative">
+                            <i class="fas fa-bell fa-lg"></i>
+                            <span id="notif-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display:none;">
+                                0
+                            </span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item"><a class="nav-link" href="{% url 'connexion' %}">Connexion</a></li>
+                    <li class="nav-item ms-lg-3">
+                        <a class="nav-link btn btn-sm btn-outline-info text-info px-3 py-1 rounded-pill" href="{% url 'inscription' %}" style="border: 1px solid var(--accent-cyan); color: var(--accent-cyan) !important;">
+                            Inscription
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="messages-container">
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-tech alert-dismissible fade show mb-2 rounded-0" role="alert">
+            <i class="fas fa-info-circle me-2 text-info"></i> {{ message }}
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+    <!-- 🚨 MODAL DE SANTÉ CRITIQUE -->
+    <div class="modal fade" id="healthModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-light border-danger">
+                <div class="modal-header">
+                    <h5 class="modal-title">🚨 Alerte réseau critique</h5>
+                </div>
+                <div class="modal-body" id="healthModalBody"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🛠️ MODAL ALERTE PERSONNALISÉ (Global) -->
+    <div class="modal fade" id="customAlertModal" tabindex="-1" style="z-index: 9999;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-info shadow-lg">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title" id="customAlertTitle">SYSTEM MESSAGE</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center p-4">
+                    <i id="customAlertIcon" class="fas fa-info-circle fa-3x mb-3 text-info"></i>
+                    <p id="customAlertMessage" class="fs-5"></p>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-info px-4" data-bs-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ✅ Fonction globale pour remplacer alert()
+        window.showCustomAlert = function(message, type = 'info', title = 'SYSTEM MESSAGE') {
+            const modalEl = document.getElementById('customAlertModal');
+            const messageEl = document.getElementById('customAlertMessage');
+            const titleEl = document.getElementById('customAlertTitle');
+            const iconEl = document.getElementById('customAlertIcon');
+
+            messageEl.innerText = message;
+            titleEl.innerText = title;
+
+            // Styles selon le type
+            const styles = {
+                'success': { icon: 'fa-check-circle', color: 'text-success', border: 'border-success' },
+                'error': { icon: 'fa-exclamation-triangle', color: 'text-danger', border: 'border-danger' },
+                'warning': { icon: 'fa-exclamation-circle', color: 'text-warning', border: 'border-warning' },
+                'info': { icon: 'fa-info-circle', color: 'text-info', border: 'border-info' }
+            };
+
+            const config = styles[type] || styles['info'];
+            
+            iconEl.className = `fas ${config.icon} fa-3x mb-3 ${config.color}`;
+            modalEl.querySelector('.modal-content').className = `modal-content bg-dark text-white shadow-lg ${config.border}`;
+            
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        };
+    </script>
+    {% if maintenances_actives %}
+    <div class="alert alert-warning text-center rounded-0 mb-0">
+        🛠️ Maintenance en cours :
+        {% for m in maintenances_actives %}
+        <strong>{{ m.equipement.nom }}</strong>
+        ({{ m.raison }}) jusqu’à {{ m.fin|date:"H:i" }}
+        {% endfor %}
+    </div>
+    {% endif %}
+    <main>
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer>
+        <div class="container text-center">
+            <div class="row align-items-center">
+                <div class="col-md-6 text-md-start mb-2 mb-md-0">
+                    <span class="status-dot"></span> SYSTEM ONLINE
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="m-0">&copy; {{ now|date:"Y" }} InfraControl <span class="mx-2">|</span> v2.4.0-stable</p>
+                    <p class="m-0 small opacity-50">Monitoring & Sécurité Réseau</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // 1. Initialisation des Tooltips Bootstrap (optionnel mais utile)
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            })
+
+            // 2. Anti-bot fingerprint (Votre script original)
+            let fp = "";
+            document.addEventListener("mousemove", e => fp += e.clientX % 7);
+            document.addEventListener("keydown", e => fp += e.keyCode);
+            window.addEventListener("beforeunload", () => {
+                const el = document.createElement("input");
+                el.type = "hidden";
+                el.name = "_fp";
+                el.value = btoa(fp.slice(0, 50));
+                const forms = document.querySelectorAll("form");
+                forms.forEach(f => f.appendChild(el.cloneNode(true)));
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const notifCount = document.getElementById("notif-count");
+            let lastCount = 0;
+
+            // ✅ Fonction principale pour mettre à jour la cloche
+            async function majNotif() {
+                try {
+                    const response = await fetch("{% url 'incidents_non_resolus_count' %}");
+                    const data = await response.json();
+                    const count = data.count || 0;
+
+                    if (count > 0) {
+                        notifCount.textContent = count;
+                        notifCount.style.display = "inline-block";
+                        notifCount.classList.add("alert");
+
+                        // 🔔 Si un nouvel incident est apparu
+                        if (count > lastCount) {
+                            jouerAlerteSonore();
+                            envoyerNotification("🚨 Nouvelle alerte réseau détectée !",
+                                `${count} incident${count > 1 ? 's' : ''} ouvert${count > 1 ? 's' : ''}.`);
+                        }
+                    } else {
+                        notifCount.style.display = "none";
+                        notifCount.classList.remove("alert");
+                    }
+
+                    lastCount = count;
+
+                } catch (err) {
+                    console.warn("Erreur mise à jour notifications :", err);
+                }
+            }
+
+            // 🔊 Fonction de lecture sonore
+            function jouerAlerteSonore() {
+                const audio = new Audio("/static/sounds/alert.wav"); // ✅ Corrigé de .mp3 en .wav
+                audio.volume = 0.7;
+                audio.play().catch(err => console.warn("Audio bloqué par le navigateur :", err));
+            }
+
+            // 🔔 Fonction pour afficher une notification système
+            function envoyerNotification(titre, message) {
+                if (!("Notification" in window)) return;
+
+                if (Notification.permission === "granted") {
+                    const notif = new Notification(titre, {
+                        body: message,
+                        // icon: "/static/images/alert_icon.png" // ❌ Retiré car 404
+                    });
+                } else if (Notification.permission !== "denied") {
+                    Notification.requestPermission().then(permission => {
+                        if (permission === "granted") {
+                            new Notification(titre, { body: message });
+                        }
+                    });
+                }
+            }
+
+            // 🔄 Mise à jour toutes les 10 secondes
+            majNotif();
+            setInterval(majNotif, 10000);
+        });
+    </script>
+    <script>
+        async function verifierHealth() {
+            const res = await fetch("/monitoring/health/global/");
+            const data = await res.json();
+
+            if (data.alert) {
+                document.getElementById("healthModalBody").innerHTML = data.message;
+                new bootstrap.Modal(document.getElementById("healthModal")).show();
+            }
+        }
+
+        setInterval(verifierHealth, 15000);
+    </script>
+
+    <!-- 💡 MODAL DU TUTORIEL (Caché) -->
+    <div class="modal fade" id="onboardingModal" tabindex="-1" style="z-index: 9999;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-info shadow-lg">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title text-info"><i class="fas fa-magic me-2"></i>Assistant Virtuel</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <label for="modal-input" class="form-label text-muted">Nom de la ressource (Simulation)</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" id="modal-input" placeholder="Saisissez un nom...">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🚀 SCRIPT DRIVER.JS -->
+    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const driver = window.driver.js.driver;
+            const modalElement = document.getElementById('onboardingModal');
+            let myModal = null;
+            
+            // On s'assure que Bootstrap est bien chargé
+            if(typeof bootstrap !== 'undefined') {
+                myModal = new bootstrap.Modal(modalElement);
+            }
+
+            const driverObj = driver({
+                showProgress: true,
+                // Utilisation de verbatim pour éviter un conflit avec le moteur de template Django
+                progressText: '{% verbatim %}Étape {{current}} sur {{total}}{% endverbatim %}',
+                allowClose: false,
+                steps: [
+                    {
+                        element: '.navbar-brand',
+                        popover: { 
+                            title: 'Bienvenue sur InfraControl', 
+                            description: 'Voici votre portail central pour toute la supervision réseau.', 
+                            side: "bottom", 
+                            align: "start" 
+                        }
+                    },
+                    {
+                        element: '#navbarNav > ul.navbar-nav.me-auto',
+                        popover: { 
+                            title: 'Navigation Principale', 
+                            description: 'Passez d\'un module à l\'autre : WiFi, Sécurité, Rapports, etc.', 
+                            side: "bottom" 
+                        }
+                    },
+                    {
+                        element: '#notif-count',
+                        popover: { 
+                            title: 'Alertes en Temps Réel', 
+                            description: 'Le nombre d\'incidents réseau non résolus apparaîtra ici.', 
+                            side: "left" 
+                        }
+                    },
+                    {
+                        element: '#modal-input',
+                        popover: { 
+                            title: 'Formulaires Intelligents', 
+                            description: 'Remplissez les champs requis. Observez comment ce modal s\'est ouvert tout seul !',
+                            side: "bottom"
+                        },
+                        onHighlightStarted: (element, step, options) => {
+                            return new Promise((resolve) => {
+                                if (modalElement.classList.contains('show')) {
+                                    resolve();
+                                    return;
+                                }
+                                modalElement.addEventListener('shown.bs.modal', function onModalShown() {
+                                    modalElement.removeEventListener('shown.bs.modal', onModalShown);
+                                    // Léger délai pour stabiliser l'animation et le calcul de driver
+                                    setTimeout(resolve, 150); 
+                                });
+                                if(myModal) myModal.show();
+                            });
+                        },
+                        onDeselected: (element, step, options) => {
+                            if(myModal) myModal.hide();
+                        }
+                    }
+                ],
+                onDestroyStarted: () => {
+                    if (modalElement.classList.contains('show')) {
+                        if(myModal) myModal.hide();
+                    }
+                    driverObj.destroy();
+                }
+            });
+
+            const startBtn = document.getElementById('start-tuto');
+            if (startBtn) {
+                startBtn.addEventListener('click', () => {
+                    driverObj.drive();
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>

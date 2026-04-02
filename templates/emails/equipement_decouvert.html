@@ -1,0 +1,16 @@
+{% extends 'emails/base_email.html' %}
+
+{% block content %}
+<h2 style="color: #198754;">🔍 Nouvel Équipement Découvert</h2>
+<p>Un nouvel équipement a été identifié lors du scan réseau automatique :</p>
+<div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 5px solid #198754;">
+    <p><strong>Adresse IP :</strong> {{ discovery.adresse_ip }}</p>
+    <p><strong>Nom d'hôte :</strong> {{ discovery.hostname|default:"Inconnu" }}</p>
+    <p><strong>Type probable :</strong> {{ discovery.get_type_probable_display }}</p>
+    <p><strong>Fabricant :</strong> {{ discovery.manufacturer|default:"Inconnu" }}</p>
+</div>
+<p style="margin-top: 20px;">
+    Veuillez valider l'ajout de cet équipement dans l'inventaire de supervision.
+</p>
+<a href="{{ discovery_url }}" style="display: inline-block; padding: 10px 20px; background-color: #0d6efd; color: white; text-decoration: none; border-radius: 5px;">Accéder à la Découverte</a>
+{% endblock %}

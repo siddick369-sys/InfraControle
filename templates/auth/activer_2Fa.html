@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% block title %}Sécurisation 2FA - InfraControl{% endblock %}
+
+{% block content %}
+<style>
+    /* --- 1. THEME "ENCRYPTION" --- */
+    :root {
+        --bg-vault: #020617;
+        --neon-green: #10b981; /* Vert Matrix/Sécurité */
+        --neon-cyan: #0ea5e9;
+        --text-white: #f8fafc;
+        --card-glass: rgba(15, 23, 42, 0.85);
+        --scan-line: rgba(16, 185, 129, 0.5);
+    }
+
+    /* Force le texte blanc */
+    .auth-wrapper {
+        color: var(--text-white);
+        position: relative;
+        z-index: 10;
+        min-height: 85vh;
+        display: flex;
+        align-items: center;
+    }
+
+    h3, p, label, div { color: var(--text-white); }
+    .text-muted { color: #94a3b8 !important; }
+
+    /* --- 2. BACKGROUND DESKTOP (DIGITAL HORIZON) --- */
+    #horizon-canvas {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        background: var(--bg-vault);
+    }
+
+    /* --- 3. BACKGROUND MOBILE (RADAR SWEEP) --- */
+    .mobile-radar-bg {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        background: #020617;
+        overflow: hidden;
+    }
+
+    .radar-beam {
+        position: absolute;
+        top: -50%; left: -50%;
+        width: 200%; height: 200%;
+        background: conic-gradient(
+            transparent 0deg, 
+            transparent 300deg, 
+            rgba(16, 185, 129, 0.1) 340deg, 
+            rgba(16, 185, 129, 0.4) 360deg
+        );
+        animation: radar-spin 8s linear infinite;
+    }
+
+    @keyframes radar-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    /* --- 4. UI CARTE & SCANNER --- */
+    .crypto-card {
+        background: var(--card-glass);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(16, 185, 129, 0.3); /* Bordure verte */
+        border-radius: 16px;
+        box-shadow: 0 0 40px rgba(16, 185, 129, 0.15);
+    }
+
+    /* Effet de viseur autour du QR Code */
+    .qr-container {
+        position: relative;
+        display: inline-block;
+        padding: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    /* Ligne de scan qui descend sur le QR Code */
+    .qr-scan-line {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 4px;
+        background: var(--neon-green);
+        box-shadow: 0 0 10px var(--neon-green);
+        animation: scanDown 2.5s ease-in-out infinite;
+        opacity: 0.6;
+    }
+
+    @keyframes scanDown {
+        0% { top: 0%; opacity: 0; }
+        10% { opacity: 1; }
+        90% { opacity: 1; }
+        100% { top: 100%; opacity: 0; }
+    }
+
+    /* Inputs Code OTP */
+    .form-control-otp {
+        background-color: rgba(0, 0, 0, 0.5) !important;
+        border: 1px solid #334155;
+        color: var(--neon-green) !important;
+        font-family: 'Courier New', monospace;
+        font-size: 1.5rem;
+        letter-spacing: 0.5rem;
+        text-align: center;
+        font-weight: bold;
+    }
+
+    .form-control-otp:focus {
+        border-color: var(--neon-green);
+        box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+    }
+
+    /* Bouton Activation */
+    .btn-activate {
+        background: linear-gradient(90deg, #065f46 0%, #10b981 100%);
+        border: none;
+        color: white;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 1px;
+    }
+    
+    .btn-activate:hover {
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+        color: white;
+    }
+
+</style>
+
+<canvas id="horizon-canvas" class="d-none d-lg-block"></canvas>
+
+<div class="mobile-radar-bg d-lg-none">
+    <div class="radar-beam"></div>
+</div>
+
+<div class="container auth-wrapper">
+    <div class="row justify-content-center w-100">
+        <div class="col-md-7 col-lg-5">
+            
+            <div class="card crypto-card p-4">
+                <div class="card-body text-center">
+                    
+                    <div class="mb-4">
+                        <i class="fas fa-shield-alt fa-3x mb-3" style="color: var(--neon-green);"></i>
+                        <h4 class="fw-bold text-uppercase">Protocole 2FA</h4>
+                        <p class="text-muted small">Synchronisation de l'authentificateur mobile</p>
+                    </div>
+
+                    {% if qr_code_base64 %}
+                    <div class="my-4 position-relative">
+                        <div class="qr-container">
+                            <img src="data:image/png;base64,{{ qr_code_base64|safe }}" 
+                                 alt="QR Key" 
+                                 class="img-fluid rounded"
+                                 style="max-width: 220px; filter: contrast(120%);">
+                            <div class="qr-scan-line"></div>
+                        </div>
+                        <p class="text-muted small mt-2">
+                            <i class="fas fa-camera me-1"></i> Scannez avec Google Auth / Authy
+                        </p>
+                    </div>
+                    {% else %}
+                        <div class="alert alert-warning border-warning bg-transparent text-warning">
+                            <i class="fas fa-exclamation-triangle"></i> Génération de clé impossible.
+                        </div>
+                    {% endif %}
+
+                    <form method="POST" class="mt-4 text-start">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label class="small text-uppercase text-muted mb-2 d-block text-center">Entrez le Token généré</label>
+                            <input type="text" name="code" maxlength="6"
+                                   class="form-control form-control-otp" 
+                                   placeholder="000000"
+                                   required autocomplete="off" 
+                                   inputmode="numeric" 
+                                   pattern="[0-9]*">
+                        </div>
+
+                        <button type="submit" class="btn btn-activate w-100 py-2">
+                            <i class="fas fa-link me-2"></i> ACTIVER LA PROTECTION
+                        </button>
+                    </form>
+
+                    <div class="mt-4 pt-3 border-top border-secondary border-opacity-25">
+                        <a href="{% url 'profile' %}" class="text-decoration-none small text-muted hover-white">
+                            <i class="fas fa-times-circle me-1"></i> Annuler la procédure
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const canvas = document.getElementById('horizon-canvas');
+    
+    // Uniquement sur Desktop
+    if (canvas && window.innerWidth >= 992) {
+        const ctx = canvas.getContext('2d');
+        let w, h;
+
+        function resize() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Variables de la grille
+        let lines = [];
+        const lineCount = 20; // Nombre de lignes horizontales
+        const speed = 1.5; // Vitesse de défilement
+
+        function drawGrid() {
+            // Effacer avec légère transparence pour effet de flou (motion blur)
+            ctx.fillStyle = 'rgba(2, 6, 23, 1)'; 
+            ctx.fillRect(0, 0, w, h);
+
+            // Centre de perspective
+            const cx = w / 2;
+            const cy = h / 2;
+
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(16, 185, 129, 0.3)'; // Lignes Vertes
+
+            // 1. Lignes Verticales (Perspective)
+            // Elles partent du centre et vont vers l'extérieur bas/haut
+            const verticalLines = 16;
+            for(let i=0; i<=verticalLines; i++) {
+                // On distribue les lignes sur la largeur
+                let x = (w * i / verticalLines); 
+                
+                // Calcul vectoriel simple pour la perspective
+                // On trace du centre (ou presque) vers le bord bas
+                ctx.beginPath();
+                // Point de fuite (légèrement sous l'horizon pour effet sol)
+                ctx.moveTo(cx, cy); 
+                // On écarte les points en bas pour la perspective
+                let x_bottom = (x - cx) * 4 + cx; 
+                ctx.lineTo(x_bottom, h);
+                ctx.stroke();
+            }
+
+            // 2. Lignes Horizontales (Mouvement)
+            // On fait avancer des lignes horizontales du centre vers le bas
+            // Pour simuler le sol qui avance
+            
+            // On met à jour ou initialise les lignes
+            if(lines.length < lineCount) {
+                // On remplit le tableau de positions Y (de 0 à h/2)
+                for(let i=0; i<lineCount; i++) {
+                    lines.push((h/2) + (i * (h/2)/lineCount));
+                }
+            }
+
+            for(let i=0; i<lines.length; i++) {
+                lines[i] += speed * (lines[i] - cy) * 0.015; // Accélération exponentielle vers le bas
+
+                if(lines[i] > h) {
+                    lines[i] = cy + 5; // Reset au centre (horizon)
+                }
+
+                const y = lines[i];
+                const alpha = (y - cy) / (h/2); // Plus c'est proche, plus c'est opaque
+
+                ctx.beginPath();
+                ctx.strokeStyle = `rgba(16, 185, 129, ${alpha * 0.5})`;
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+                ctx.stroke();
+            }
+
+            // Halo au centre (Soleil Digital)
+            const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, 200);
+            gradient.addColorStop(0, 'rgba(16, 185, 129, 0.1)');
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, w, h);
+
+            requestAnimationFrame(drawGrid);
+        }
+        drawGrid();
+    }
+});
+</script>
+{% endblock %}

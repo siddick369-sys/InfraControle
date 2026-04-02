@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial; background-color: #f5f7fa; padding: 20px;">
+    <div style="max-width: 600px; margin:auto; background:#fff; border-radius:10px; padding:20px;">
+      <h2 style="color:#e53935;">🔐 Réinitialisation de votre double authentification</h2>
+      <p>Bonjour {{ user.username }},</p>
+      <p>Vous avez demandé à réinitialiser la double authentification de votre compte <b>InfraControl</b>.</p>
+      <p>Voici votre code de vérification :</p>
+      <div style="font-size: 22px; letter-spacing: 3px; background:#f1f1f1; padding:10px; border-radius:5px;">
+        {{ code }}
+      </div>
+      <p>Ce code est valable 10 minutes.</p>
+      <p>Si vous n’êtes pas à l’origine de cette demande, ignorez simplement cet email.</p>
+      <p style="color:#888;">— L’équipe InfraControl</p>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-file-contract text-info me-2"></i> Rapports Administratifs</h2>
+        <button id="btnGenerer" class="btn btn-outline-primary shadow-sm border-2">
+            <i class="fas fa-magic me-2"></i> Générer un rapport IA
+        </button>
+    </div>
+
+    <div class="card bg-dark border-secondary shadow">
+        <div class="card-body p-0">
+            <table class="table table-dark table-hover mb-0">
+                <thead class="table-active">
+                    <tr>
+                        <th>Période Couverte</th>
+                        <th class="text-center">Incidents</th>
+                        <th class="text-center">Éq. Impactés</th>
+                        <th>Généré le</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rapport in rapports %}
+                    <tr>
+                        <td class="align-middle fw-medium">{{ rapport.date_debut|date:"d M Y" }} → {{ rapport.date_fin|date:"d M Y" }}</td>
+                        <td class="align-middle text-center"><span class="badge bg-warning text-dark">{{ rapport.nb_incidents }}</span></td>
+                        <td class="align-middle text-center">{{ rapport.nb_equipements_impactes }}</td>
+                        <td class="align-middle text-muted">{{ rapport.cree_le|date:"d/m/Y H:i" }}</td>
+                        <td class="align-middle text-end pe-3">
+                            <!-- Bouton Détail (Ouvre la Modale) -->
+                            <button type="button" class="btn btn-sm btn-info text-white me-1" 
+                                    onclick='ouvrirModalRapport("{{ rapport.id }}", "{{ rapport.analyse_ia|escapejs }}")'>
+                                <i class="fas fa-eye"></i> Détail
+                            </button>
+                            <a href="{% url 'reports:telecharger_pdf' rapport.id %}" class="btn btn-sm btn-outline-success">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">Aucu rapport généré pour le moment.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Rapport AI -->
+<div class="modal fade" id="modalRapport" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content bg-dark text-light border-secondary">
+      <div class="modal-header border-bottom border-secondary">
+        <h5 class="modal-title text-info"><i class="fas fa-robot me-2"></i> Rapport Administratif IA</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body bg-black" style="font-family: 'Segoe UI', sans-serif;">
+            <!-- Conteneur pour le Markdown -->
+            <div id="rapportContent" class="markdown-body p-3 text-light"></div>
+      </div>
+      <div class="modal-footer border-top border-secondary">
+        <a href="#" id="modalPdfBtn" class="btn btn-success"><i class="fas fa-download me-2"></i> Télécharger PDF</a>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Marked.js pour le rendu Markdown -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<style>
+    /* Styles basiques pour le rendu Markdown sombre */
+    .markdown-body h1, .markdown-body h2, .markdown-body h3 { color: #0dcaf0; border-bottom: 1px solid #444; padding-bottom: 0.3em; margin-top: 1em; }
+    .markdown-body p { line-height: 1.6; color: #cbd5e1; }
+    .markdown-body ul { margin-bottom: 1rem; color: #cbd5e1; }
+    .markdown-body strong { color: #f8f9fa; }
+</style>
+
+<script>
+    let rapportModal;
+
+    document.addEventListener("DOMContentLoaded", function () {
+        // Initialiser la modale une fois que Bootstrap est chargé
+        const modalEl = document.getElementById('modalRapport');
+        if (modalEl) {
+            rapportModal = new bootstrap.Modal(modalEl);
+        }
+
+        // Génération
+        const btnGenerer = document.getElementById('btnGenerer');
+        if (btnGenerer) {
+            btnGenerer.onclick = function () {
+                console.log("Démarrage de la génération de rapport...");
+                const originalText = this.innerHTML;
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Génération par IA en cours...';
+                
+                fetch("{% url 'reports:generer' %}")
+                    .then(response => {
+                        console.log("Réponse reçue du serveur, statut:", response.status);
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log("Données reçues:", data);
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert('Erreur: ' + (data.error || 'Erreur inconnue'));
+                            this.disabled = false;
+                            this.innerHTML = originalText;
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Erreur réseau/fetch:", err);
+                        alert('Erreur réseau lors de la génération. Vérifiez la console.');
+                        this.disabled = false;
+                        this.innerHTML = originalText;
+                    });
+            };
+        }
+    });
+
+    // Fonction globale pour ouvrir la modale
+    function ouvrirModalRapport(rapportId, markdownText) {
+        // Rendu du Markdown en HTML
+        document.getElementById('rapportContent').innerHTML = marked.parse(markdownText || "*Aucune analyse IA disponible.*");
+        
+        // MAJ du lien PDF
+        const pdfUrl = "{% url 'reports:telecharger_pdf' 0 %}".replace('/0/', '/' + rapportId + '/');
+        document.getElementById('modalPdfBtn').href = pdfUrl;
+        
+        if (rapportModal) {
+            rapportModal.show();
+        } else {
+            console.error("La modale n'est pas initialisée.");
+        }
+    }
+</script>
+{% endblock %}

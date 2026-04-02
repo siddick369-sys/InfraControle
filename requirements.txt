@@ -1,0 +1,69 @@
+# =============================================
+# INFRACONTROL - Dépendances Python
+# =============================================
+
+# --- Django Core ---
+Django>=5.0
+djangorestframework
+django-environ
+django-extensions
+django-filter
+django-crispy-forms
+crispy-bootstrap5
+django-cors-headers
+django-cleanup
+
+# --- Async / WebSocket ---
+daphne
+channels
+
+# --- Sécurité ---
+django-otp
+cryptography
+
+# --- Celery + Redis ---
+celery[redis]
+django-celery-beat
+redis
+django-redis
+flower
+
+# --- Base de données ---
+psycopg2-binary
+
+# --- Monitoring / Prometheus ---
+django-prometheus
+prometheus-client
+
+# --- IA ---
+groq
+google-genai
+requests>=2.31.0
+
+# --- Réseau (scan, SSH) ---
+paramiko
+# netifaces (removed for windows compatibility)
+scapy>=2.5.0
+pysnmp==4.4.12
+pyasn1==0.4.8
+
+# --- PDF / Rapports ---
+reportlab
+
+# --- Data / Analyse ---
+pandas
+numpy
+
+# --- Serveur Production ---
+gunicorn
+whitenoise
+
+# --- Images ---
+Pillow
+qrcode[pil]
+
+# --- Reporting ---
+weasyprint
+
+# --- Admin UI ---
+django-jazzmin

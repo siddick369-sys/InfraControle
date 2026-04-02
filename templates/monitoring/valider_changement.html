@@ -1,0 +1,14 @@
+<h2>🔐 Validation du changement</h2>
+
+<p>
+<strong>Commande :</strong> {{ change.commande.nom }}<br>
+<strong>Équipement :</strong> {{ change.equipement.nom }}<br>
+<strong>Planifié pour :</strong> {{ change.date_execution }}
+</p>
+
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+
+  <button class="btn btn-success">✔️ Confirmer</button>
+</form>

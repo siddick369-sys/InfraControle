@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+{% block title %}Vérification Signal - InfraControl{% endblock %}
+
+{% block content %}
+<style>
+    /* --- 1. THEME "DECODING" (SAPPHIRE/MAGENTA) --- */
+    :root {
+        --bg-space: #0f0518; /* Fond très sombre teinté violet */
+        --neon-sapphire: #2563eb;
+        --neon-magenta: #d946ef;
+        --text-white: #f8fafc;
+        --card-glass: rgba(15, 23, 42, 0.85);
+        --input-dark: rgba(0, 0, 0, 0.6);
+    }
+
+    /* Force le texte blanc */
+    .verify-code-wrapper {
+        color: var(--text-white);
+        position: relative;
+        z-index: 10;
+        min-height: 85vh;
+        display: flex;
+        align-items: center;
+    }
+
+    h3, p, label, a { color: var(--text-white) !important; }
+
+    /* --- 2. BACKGROUND DESKTOP (ORBITAL NETWORK) --- */
+    #orbit-canvas {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        background: var(--bg-space);
+    }
+
+    /* --- 3. BACKGROUND MOBILE (DIGITAL RAIN) --- */
+    .mobile-rain-bg {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        background: #020617;
+        overflow: hidden;
+    }
+
+    .rain-column {
+        position: absolute;
+        top: -50%;
+        width: 1px;
+        height: 150%;
+        background: linear-gradient(to bottom, transparent, var(--neon-sapphire), transparent);
+        opacity: 0.3;
+        animation: rainDrop 3s linear infinite;
+    }
+
+    /* Quelques gouttes magenta pour le contraste */
+    .rain-column.magenta {
+        background: linear-gradient(to bottom, transparent, var(--neon-magenta), transparent);
+    }
+
+    @keyframes rainDrop {
+        0% { transform: translateY(-100%); }
+        100% { transform: translateY(100%); }
+    }
+
+    /* --- 4. CARTE & UI --- */
+    .decode-card {
+        background: var(--card-glass);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(37, 99, 235, 0.3);
+        border-radius: 16px;
+        box-shadow: 0 0 50px rgba(37, 99, 235, 0.15);
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Icone Satellite Animée */
+    .satellite-box {
+        width: 90px; height: 90px;
+        margin: 0 auto 20px;
+        background: rgba(37, 99, 235, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px dashed var(--neon-sapphire);
+        position: relative;
+    }
+
+    .satellite-orbit {
+        position: absolute;
+        width: 100%; height: 100%;
+        border-radius: 50%;
+        border: 1px solid transparent;
+        border-top-color: var(--neon-magenta);
+        animation: spinOrbit 3s linear infinite;
+    }
+
+    @keyframes spinOrbit {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Input Code (Style Segmenté) */
+    .form-control-code {
+        background-color: var(--input-dark) !important;
+        border: 2px solid #1e3a8a;
+        color: var(--neon-sapphire) !important;
+        font-family: 'Courier New', monospace;
+        font-size: 2rem;
+        letter-spacing: 0.8rem;
+        text-align: center;
+        font-weight: bold;
+        height: 70px;
+        transition: 0.3s;
+        text-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
+    }
+
+    .form-control-code:focus {
+        border-color: var(--neon-magenta);
+        box-shadow: 0 0 25px rgba(217, 70, 239, 0.3);
+        background-color: black !important;
+        color: var(--neon-magenta) !important;
+        text-shadow: 0 0 10px rgba(217, 70, 239, 0.5);
+    }
+    
+    .form-control-code::placeholder {
+        font-size: 1rem;
+        letter-spacing: normal;
+        vertical-align: middle;
+        opacity: 0.3;
+    }
+
+    /* Bouton Validation */
+    .btn-decode {
+        background: linear-gradient(90deg, #1d4ed8 0%, #a21caf 100%);
+        border: none;
+        color: white;
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 2px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-decode:hover {
+        box-shadow: 0 0 25px rgba(162, 28, 175, 0.5);
+        color: white;
+        background: linear-gradient(90deg, #1e40af 0%, #86198f 100%);
+        transform: scale(1.02);
+    }
+
+    /* Lien Renvoi */
+    .retry-link {
+        color: var(--neon-sapphire) !important;
+        font-size: 0.9rem;
+        text-decoration: none;
+        opacity: 0.8;
+        transition: 0.3s;
+    }
+    .retry-link:hover {
+        opacity: 1;
+        color: var(--neon-magenta) !important;
+        text-shadow: 0 0 8px rgba(217, 70, 239, 0.6);
+    }
+
+</style>
+
+<canvas id="orbit-canvas" class="d-none d-lg-block"></canvas>
+
+<div class="mobile-rain-bg d-lg-none" id="rain-container">
+    </div>
+
+<div class="container verify-code-wrapper">
+    <div class="row justify-content-center w-100">
+        <div class="col-md-6 col-lg-5">
+            
+            <div class="card decode-card p-4">
+                <div class="card-body">
+                    
+                    <div class="text-center">
+                        <div class="satellite-box">
+                            <div class="satellite-orbit"></div>
+                            <i class="fas fa-satellite-dish fa-2x" style="color: var(--neon-sapphire);"></i>
+                        </div>
+                        <h3 class="fw-bold mb-2">DÉCODAGE SIGNAL</h3>
+                        <p class="text-white-50 small mb-4">
+                            Entrez la séquence numérique reçue<br>sur votre terminal de messagerie.
+                        </p>
+                    </div>
+
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="text" name="website" class="d-none" autocomplete="off" tabindex="-1">
+
+                        <div class="form-group mb-4">
+                            <label for="code" class="small text-uppercase text-muted mb-2 d-block text-center">Séquence (6 Chiffres)</label>
+                            <input type="text" name="code" id="code" maxlength="6" 
+                                   class="form-control form-control-code" 
+                                   placeholder="000 000" 
+                                   inputmode="numeric" 
+                                   pattern="[0-9]*" 
+                                   autocomplete="one-time-code"
+                                   required autofocus>
+                        </div>
+
+                        <button type="submit" class="btn btn-decode w-100 py-3">
+                            <i class="fas fa-check-double me-2"></i> VALIDER LA SÉQUENCE
+                        </button>
+                    </form>
+
+                    <div class="text-center mt-4 pt-3 border-top border-secondary border-opacity-25">
+                        <a href="{% url 'reset_password_request' %}" class="retry-link">
+                            <i class="fas fa-sync-alt me-1"></i> Signal perdu ? Renvoyer le code
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    
+    /* -----------------------------------------------
+       1. ANIMATION DESKTOP : ORBITAL NETWORK
+       ----------------------------------------------- */
+    const canvas = document.getElementById('orbit-canvas');
+    if (canvas && window.innerWidth >= 992) {
+        const ctx = canvas.getContext('2d');
+        let w, h;
+        
+        function resize() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        const planets = [];
+        const planetCount = 4; // Peu de planètes, mais avec des lunes
+
+        class Planet {
+            constructor(r, speed, color) {
+                this.r = r; // Distance du centre
+                this.angle = Math.random() * Math.PI * 2;
+                this.speed = speed;
+                this.color = color;
+                this.size = Math.random() * 4 + 2;
+            }
+
+            update() {
+                this.angle += this.speed;
+            }
+
+            draw() {
+                const cx = w/2;
+                const cy = h/2;
+                const x = cx + Math.cos(this.angle) * this.r;
+                const y = cy + Math.sin(this.angle) * this.r;
+
+                // Orbite (Traînée)
+                ctx.beginPath();
+                ctx.arc(cx, cy, this.r, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(37, 99, 235, 0.1)`;
+                ctx.stroke();
+
+                // Planète
+                ctx.beginPath();
+                ctx.arc(x, y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        // Init Planètes
+        for(let i=1; i<=planetCount; i++) {
+            planets.push(new Planet(
+                150 + (i * 80), 
+                0.002 / i * (i%2==0 ? 1 : -1), // Sens alterné
+                i === 3 ? '#d946ef' : '#2563eb' // Une magenta, les autres bleues
+            ));
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, w, h);
+            
+            // Étoiles de fond statiques (générées une fois idéalement, mais ici simple)
+            if(Math.random() > 0.9) {
+                const sx = Math.random() * w;
+                const sy = Math.random() * h;
+                ctx.fillStyle = 'white';
+                ctx.fillRect(sx, sy, 1, 1);
+            }
+
+            planets.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
+    }
+
+    /* -----------------------------------------------
+       2. ANIMATION MOBILE : DIGITAL RAIN (CSS)
+       ----------------------------------------------- */
+    const rainContainer = document.getElementById('rain-container');
+    if (rainContainer && window.innerWidth < 992) {
+        const columns = 15; // Nombre de gouttes
+        
+        for(let i=0; i<columns; i++) {
+            const drop = document.createElement('div');
+            drop.className = 'rain-column';
+            if(i % 3 === 0) drop.classList.add('magenta'); // Une sur 3 est magenta
+            
+            drop.style.left = (Math.random() * 100) + '%';
+            drop.style.animationDuration = (Math.random() * 2 + 1) + 's';
+            drop.style.animationDelay = (Math.random() * 2) + 's';
+            
+            rainContainer.appendChild(drop);
+        }
+    }
+});
+</script>
+{% endblock %}

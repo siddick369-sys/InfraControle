@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% block title %}Configuration Profil - InfraControl{% endblock %}
+
+{% block content %}
+<style>
+    /* --- 1. CONFIGURATION COULEURS & TEXTE --- */
+    :root {
+        --bg-panel: rgba(15, 23, 42, 0.85); /* Fond carte semi-transparent */
+        --border-tech: 1px solid rgba(56, 189, 248, 0.3); /* Cyan subtil */
+        --input-bg: rgba(0, 0, 0, 0.4);
+        --accent-cyan: #0ea5e9;
+        --text-white: #f8fafc;
+    }
+
+    /* Force le texte en blanc partout dans ce block */
+    .edit-profile-wrapper {
+        color: var(--text-white);
+        position: relative;
+        z-index: 10;
+        padding-top: 5vh;
+        padding-bottom: 5vh;
+    }
+
+    .text-white-forced, .form-label, h4, a {
+        color: var(--text-white) !important;
+    }
+
+    /* --- 2. BACKGROUND DESKTOP (CANVAS) --- */
+    #hex-canvas {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        background: #020617; /* Fond très noir */
+    }
+
+    /* --- 3. BACKGROUND MOBILE (CSS GRADIENT FLOW) --- */
+    .mobile-flow-bg {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        background: linear-gradient(-45deg, #0f172a, #1e1b4b, #0c4a6e, #020617);
+        background-size: 400% 400%;
+        animation: gradientFlow 12s ease infinite;
+    }
+
+    @keyframes gradientFlow {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    /* --- 4. CARTE TECH STYLE --- */
+    .config-card {
+        background: var(--bg-panel);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: var(--border-tech);
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+        border-radius: 8px; /* Angles plus droits pour l'aspect technique */
+    }
+
+    .card-header-tech {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 15px;
+        margin-bottom: 20px;
+    }
+
+    /* --- 5. INPUTS TERMINAL STYLE --- */
+    .form-control {
+        background-color: var(--input-bg) !important;
+        border: 1px solid #334155;
+        color: var(--accent-cyan) !important; /* Texte saisi en Cyan */
+        font-family: 'Consolas', 'Courier New', monospace;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+        background-color: rgba(14, 165, 233, 0.1) !important;
+        border-color: var(--accent-cyan);
+        box-shadow: 0 0 10px rgba(14, 165, 233, 0.2);
+    }
+
+    .form-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        opacity: 0.8;
+    }
+
+    /* Bouton Save */
+    .btn-save {
+        background: linear-gradient(90deg, #0369a1 0%, #0ea5e9 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .btn-save:hover {
+        box-shadow: 0 0 20px rgba(14, 165, 233, 0.4);
+        color: white;
+    }
+
+    /* Input File personnalisé */
+    input[type="file"]::file-selector-button {
+        background-color: #1e293b;
+        color: white;
+        border: 1px solid #475569;
+        margin-right: 15px;
+        transition: .3s;
+    }
+    input[type="file"]::file-selector-button:hover {
+        background-color: var(--accent-cyan);
+        border-color: var(--accent-cyan);
+    }
+</style>
+
+<canvas id="hex-canvas" class="d-none d-lg-block"></canvas>
+
+<div class="mobile-flow-bg d-lg-none"></div>
+
+<div class="container edit-profile-wrapper">
+    <div class="row justify-content-center">
+        <div class="col-md-7 col-lg-6">
+            
+            <div class="card config-card p-4">
+                <div class="card-body">
+                    
+                    <div class="card-header-tech text-center">
+                        <i class="fas fa-cogs fa-2x mb-2 text-white-forced"></i>
+                        <h4 class="m-0 fw-bold">EDIT_CONFIG</h4>
+                        <small class="text-muted font-monospace">Modification des paramètres utilisateur</small>
+                    </div>
+
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label"><i class="fas fa-user-tag me-2"></i>Nom d'utilisateur</label>
+                            <input type="text" name="username" value="{{ user.username }}" class="form-control" required autocomplete="off">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label"><i class="fas fa-envelope me-2"></i>Adresse e-mail</label>
+                            <input type="email" name="email" value="{{ user.email }}" class="form-control" required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label"><i class="fas fa-mobile-alt me-2"></i>Téléphone</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-transparent border-secondary text-muted">+237</span>
+                                <input type="text" name="telephone" value="{{ user.profil.telephone|default:'677773777' }}" class="form-control" maxlength="9" required placeholder="6XXXXXXXX">
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label"><i class="fas fa-camera me-2"></i>Avatar / Photo</label>
+                            <input type="file" name="photo" class="form-control text-muted">
+                            <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Formats supportés: JPG, PNG. Max 2MB.</small>
+                        </div>
+
+                        <button type="submit" class="btn btn-save w-100 py-2 mt-2">
+                            <i class="fas fa-save me-2"></i> Enregistrer la configuration
+                        </button>
+                    </form>
+
+                    <div class="text-center mt-4 border-top border-secondary pt-3" style="border-color: rgba(255,255,255,0.1) !important;">
+                        <a href="{% url 'profile' %}" class="text-decoration-none small text-white-forced opacity-75 hover-opacity-100">
+                            <i class="fas fa-arrow-left me-1"></i> Annuler et retourner au profil
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const canvas = document.getElementById('hex-canvas');
+    // On ne lance le JS que si on est sur Desktop pour économiser la batterie mobile
+    if (canvas && window.innerWidth >= 992) {
+        const ctx = canvas.getContext('2d');
+        let w, h;
+        
+        function resize() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Paramètres Hexagone
+        const hexSize = 40;
+        const hexHeight = hexSize * 2;
+        const hexWidth = Math.sqrt(3) * hexSize;
+        const spacing = 1.1; // Espacement entre hexagones
+
+        let offset = 0;
+
+        function drawHex(x, y, opacity) {
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const angle = 2 * Math.PI / 6 * i;
+                const x_i = x + hexSize * Math.cos(angle);
+                const y_i = y + hexSize * Math.sin(angle);
+                if (i === 0) ctx.moveTo(x_i, y_i);
+                else ctx.lineTo(x_i, y_i);
+            }
+            ctx.closePath();
+            ctx.strokeStyle = `rgba(14, 165, 233, ${opacity})`; // Cyan
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, w, h);
+            
+            // Un effet de vague qui parcourt l'écran
+            offset += 0.02;
+
+            const rows = Math.ceil(h / (hexHeight * 0.75 * spacing)) + 1;
+            const cols = Math.ceil(w / (hexWidth * spacing)) + 1;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    let x = c * hexWidth * spacing;
+                    let y = r * hexHeight * 0.75 * spacing;
+
+                    // Décalage une ligne sur deux
+                    if (r % 2 === 1) x += (hexWidth * spacing) / 2;
+
+                    // Calcul de l'opacité basé sur une fonction sinus (effet respiration/vague)
+                    const dist = Math.sqrt((x - w/2)**2 + (y - h/2)**2);
+                    const opacity = (Math.sin(dist * 0.005 - offset) + 1) / 2 * 0.2; // Max 0.2 opacité
+
+                    // On ne dessine que si c'est un peu visible
+                    if (opacity > 0.02) {
+                        drawHex(x, y, opacity);
+                    }
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+        animate();
+    }
+});
+</script>
+{% endblock %}

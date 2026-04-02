@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Espace Formation Administrateur</h1>
+    <p class="lead">Simulez des incidents pour tester vos réflexes.</p>
+
+    <div class="row mt-4">
+        {% for incident in incidents %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 border-primary bg-dark text-white shadow-sm" style="border-radius: 12px; transition: transform 0.2s;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge {% if incident.niveau == 'critique' %}bg-danger{% elif incident.niveau == 'avertissement' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}">
+                            {{ incident.get_niveau_display }}
+                        </span>
+                        <small class="text-muted"><i class="fas fa-clock"></i> {{ incident.date_resolution|date:"d/m M" }}</small>
+                    </div>
+                    <h5 class="card-title fw-bold text-info">{{ incident.titre }}</h5>
+                    <h6 class="card-subtitle mb-3 text-secondary"><i class="fas fa-server"></i> {{ incident.equipement.nom }}</h6>
+                    <p class="card-text small text-light opacity-75">{{ incident.description|truncatechars:100 }}</p>
+                </div>
+                <div class="card-footer bg-transparent border-0 text-center pb-3">
+                    <a href="{% url 'training:lancer_sandbox' incident.id %}" class="btn btn-outline-info w-100 rounded-pill">
+                        <i class="fas fa-play me-2"></i> Lancer la Simulation
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="card bg-dark border-info border-dashed text-center p-5 shadow-sm" style="border-style: dashed !important; border-width: 2px !important;">
+                <div class="mb-3">
+                    <i class="fas fa-magic fa-3x text-info opacity-50"></i>
+                </div>
+                <h4 class="text-info">Aucun incident réel disponible</h4>
+                <p class="text-muted">Vous n'avez pas encore d'incidents résolus sur votre réseau ? L'IA peut simuler un cas réaliste pour vous entraîner.</p>
+                <div class="mt-4">
+                    <a href="{% url 'training:generer_scenario_ia' %}" class="btn btn-info px-4 rounded-pill shadow">
+                        <i class="fas fa-robot me-2"></i> Générer un Test IA
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="card mt-5 bg-dark border-secondary">
+        <div class="card-header bg-secondary text-white fw-bold">
+            <i class="fas fa-history me-2"></i> Votre Historique de Formation (Sandbox)
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle mb-0">
+                    <thead class="table-active">
+                        <tr>
+                            <th>Date</th>
+                            <th>Scénario IA</th>
+                            <th>Statut</th>
+                            <th>Essais CLI</th>
+                            <th>Score Final</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for session in sessions %}
+                        <tr>
+                            <td>{{ session.date_debut|date:"d/m/Y H:i" }}</td>
+                            <td>{{ session.titre_scenario }}</td>
+                            <td>
+                                {% if session.statut == 'termine_succes' %}
+                                <span class="badge bg-success"><i class="fas fa-check-circle"></i> Succès</span>
+                                {% elif session.statut == 'termine_echec' %}
+                                <span class="badge bg-danger"><i class="fas fa-times-circle"></i> Échec</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark"><i class="fas fa-spinner fa-spin"></i> En cours</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ session.tentatives_cli }} / 5</td>
+                            <td class="fw-bold {% if session.score >= 80 %}text-success{% elif session.score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                {% if session.statut != 'en_cours' %}{{ session.score }} pts{% else %}-{% endif %}
+                            </td>
+                            <td>
+                                {% if session.statut == 'en_cours' %}
+                                <a href="{% url 'training:sandbox_view' session.id %}" class="btn btn-sm btn-primary">Reprendre</a>
+                                {% else %}
+                                <a href="{% url 'training:sandbox_view' session.id %}" class="btn btn-sm btn-outline-secondary">Debriefing</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                <i class="fas fa-bed fa-2x mb-2"></i><br>
+                                Aucune session effectuée. Lancez votre première simulation !
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    .card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,255,255,0.1) !important; }
+</style>
+{% endblock %}

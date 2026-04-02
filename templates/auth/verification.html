@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+{% block title %}Vérification Sécurisée - InfraControl{% endblock %}
+
+{% block content %}
+<style>
+    /* --- 1. VARIABLES & BASE --- */
+    :root {
+        --bg-core: #050a10;     /* Noir quasi absolu */
+        --pcb-green: #10b981;   /* Vert circuit imprimé */
+        --pcb-cyan: #0ea5e9;    /* Cyan électrique */
+        --card-bg: #0f172a;     /* Fond de la carte */
+        --text-main: #e2e8f0;
+    }
+
+    body {
+        background-color: var(--bg-core);
+        color: var(--text-main);
+        font-family: 'Segoe UI', sans-serif;
+        overflow-x: hidden;
+        min-height: 100vh;
+    }
+
+    /* --- 2. CANVAS CIRCUIT BACKGROUND --- */
+    #pcb-canvas {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        z-index: -1;
+        /* Un léger dégradé pour donner de la profondeur à la "carte mère" */
+        background: radial-gradient(circle at center, #111827 0%, #000000 100%);
+    }
+
+    /* --- 3. CARTE AVEC BORDURE ANIMÉE (FLUX) --- */
+    .tech-border-container {
+        position: absolute;
+        border-radius: 10px;
+        background: var(--bg-core); /* Masque arrière */
+        overflow: hidden;
+        padding: 3px; /* Épaisseur de la bordure animée */
+        box-shadow: 0 0 40px rgba(14, 165, 233, 0.2);
+    }
+
+    /* L'animation de rotation (le flux) */
+    .tech-border-container::before {
+        content: '';
+        position: absolute;
+        top: -50%; left: -50%;
+        width: 200%; height: 200%;
+        background: conic-gradient(
+            transparent, 
+            var(--pcb-cyan), 
+            transparent 30%
+        );
+        animation: rotate-border 4s linear infinite;
+        z-index: 0;
+    }
+
+    /* Le contenu par-dessus le flux */
+    .tech-card-inner {
+        position: relative;
+        background: var(--card-bg);
+        border-radius: 8px; /* Légèrement moins que le container */
+        z-index: 1;
+        height: 100%;
+        backdrop-filter: blur(10px);
+    }
+
+    @keyframes rotate-border {
+        100% { transform: rotate(360deg); }
+    }
+
+    /* --- 4. INPUTS & TYPOGRAPHIE --- */
+    .code-input {
+        font-family: 'Courier New', monospace;
+        font-size: 1.5rem;
+        letter-spacing: 0.5rem;
+        text-align: center;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid #334155;
+        color: var(--pcb-green);
+        font-weight: bold;
+    }
+    
+    .code-input:focus {
+        background: rgba(0, 0, 0, 0.5);
+        border-color: var(--pcb-green);
+        box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+        color: var(--pcb-green);
+        outline: none;
+    }
+
+    .form-control {
+        background-color: rgba(15, 23, 42, 0.6);
+        border: 1px solid #334155;
+        color: white;
+    }
+    
+    .form-control:focus {
+        background-color: rgba(15, 23, 42, 0.8);
+        border-color: var(--pcb-cyan);
+        color: white;
+        box-shadow: none;
+    }
+
+    .btn-verify {
+        background: linear-gradient(90deg, #0f766e 0%, var(--pcb-green) 100%);
+        border: none;
+        color: white;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    
+    .btn-verify:hover {
+        opacity: 0.9;
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+        color: white;
+    }
+
+    .status-badge {
+        font-size: 0.75rem;
+        background: rgba(14, 165, 233, 0.1);
+        border: 1px solid var(--pcb-cyan);
+        color: var(--pcb-cyan);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-family: monospace;
+    }
+</style>
+
+<canvas id="pcb-canvas"></canvas>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-11 col-md-6 col-lg-5">
+            
+            <div class="tech-border-container">
+                <div class="tech-card-inner p-4">
+                    
+                    <div class="text-center mb-4">
+                        <i class="fas fa-shield-alt fa-3x mb-3" style="color: var(--pcb-green);"></i>
+                        <h4 class="fw-bold text-white">2FA HANDSHAKE</h4>
+                        <div class="mt-2">
+                            <span class="status-badge">PORT: SECURE</span>
+                            <span class="status-badge ms-1">TRIES: 5</span>
+                        </div>
+                    </div>
+
+                    <p class="text-muted text-center small mb-4">
+                        Un paquet de vérification a été transmis à <br>
+                        <span class="text-white font-monospace">{{ request.user.email }}</span>
+                    </p>
+
+                    <form method="POST">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label for="code" class="small text-muted mb-2 d-block">TOKEN REÇU</label>
+                            <input type="text" id="code" name="code" class="form-control code-input py-2" maxlength="6" placeholder="______" autocomplete="off" required autofocus>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="email" class="small text-muted mb-2">CONFIRMATION ID (EMAIL)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-transparent border-secondary text-muted"><i class="fas fa-at"></i></span>
+                                <input type="email" id="email" name="email" class="form-control border-start-0" placeholder="admin@infra.local" required>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-verify w-100 py-2">
+                            <i class="fas fa-check-circle me-2"></i> VALIDER LE TOKEN
+                        </button>
+                    </form>
+
+                    <div class="text-center mt-4">
+                        <a href="{% url 'renvoi_code' %}" class="small text-decoration-none" style="color: var(--pcb-cyan); opacity: 0.8;">
+                            <i class="fas fa-sync-alt me-1"></i> Timeout ? Renvoyer le paquet
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    /* --- ANIMATION CIRCUIT IMPRIMÉ (PCB) --- */
+    const canvas = document.getElementById('pcb-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    let width, height;
+    let tracers = [];
+    const tracerCount = 40; // Nombre de circuits simultanés
+    const grid = 20; // Les lignes se déplacent sur une grille virtuelle
+    
+    function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+    }
+    
+    class Tracer {
+        constructor() {
+            this.reset();
+        }
+        
+        reset() {
+            this.x = Math.floor(Math.random() * (width / grid)) * grid;
+            this.y = Math.floor(Math.random() * (height / grid)) * grid;
+            // Directions: 0=Haut, 1=Droite, 2=Bas, 3=Gauche
+            this.dir = Math.floor(Math.random() * 4);
+            this.life = Math.random() * 100 + 50; // Durée de vie
+            this.color = Math.random() > 0.5 ? '#10b981' : '#0ea5e9'; // Vert ou Cyan
+            this.history = [];
+        }
+        
+        update() {
+            this.history.push({x: this.x, y: this.y});
+            if (this.history.length > 15) this.history.shift(); // Longueur de la traînée
+            
+            // Mouvement selon la direction
+            if (this.dir === 0) this.y -= 2;
+            if (this.dir === 1) this.x += 2;
+            if (this.dir === 2) this.y += 2;
+            if (this.dir === 3) this.x -= 2;
+            
+            this.life--;
+            
+            // Changement de direction aléatoire (Angles droits uniquement)
+            if (Math.random() < 0.05) {
+                // Si on va horizontalement, on passe verticalement et vice versa
+                if (this.dir === 0 || this.dir === 2) {
+                    this.dir = Math.random() > 0.5 ? 1 : 3;
+                } else {
+                    this.dir = Math.random() > 0.5 ? 0 : 2;
+                }
+            }
+            
+            // Reset si mort ou hors écran
+            if (this.life <= 0 || this.x < 0 || this.x > width || this.y < 0 || this.y > height) {
+                this.reset();
+            }
+        }
+        
+        draw() {
+            ctx.beginPath();
+            ctx.lineWidth = 1.5;
+            ctx.lineCap = 'square';
+            
+            // Dessiner la traînée
+            for (let i = 0; i < this.history.length - 1; i++) {
+                const point = this.history[i];
+                const next = this.history[i+1];
+                const alpha = i / this.history.length; // Fade in tail
+                
+                ctx.strokeStyle = this.color;
+                ctx.globalAlpha = alpha;
+                ctx.moveTo(point.x, point.y);
+                ctx.lineTo(next.x, next.y);
+                ctx.stroke();
+            }
+            
+            // Dessiner la tête (Point lumineux)
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(this.x - 1, this.y - 1, 3, 3);
+        }
+    }
+    
+    function init() {
+        tracers = [];
+        for (let i = 0; i < tracerCount; i++) {
+            tracers.push(new Tracer());
+        }
+    }
+    
+    function animate() {
+        // Effacement avec traînée (pour faire disparaître lentement les vieux circuits)
+        ctx.globalAlpha = 0.1;
+        ctx.fillStyle = '#050a10'; // Couleur de fond
+        ctx.fillRect(0, 0, width, height);
+        
+        tracers.forEach(t => {
+            t.update();
+            t.draw();
+        });
+        
+        requestAnimationFrame(animate);
+    }
+    
+    window.addEventListener('resize', resize);
+    resize();
+    init();
+    animate();
+});
+</script>
+{% endblock %}

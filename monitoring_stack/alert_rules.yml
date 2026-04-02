@@ -1,0 +1,94 @@
+# =============================================
+# PROMETHEUS - Règles d'alerte Infracontrol
+# =============================================
+
+groups:
+  # --- Alertes Conteneurs ---
+  - name: container_alerts
+    rules:
+      - alert: ContainerDown
+        expr: absent(container_last_seen{name=~"infracontrol-.*"})
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container {{ $labels.name }} est DOWN"
+          description: "Le container {{ $labels.name }} n'a pas été vu depuis plus d'1 minute."
+
+      - alert: ContainerHighCPU
+        expr: rate(container_cpu_usage_seconds_total{name=~"infracontrol-.*"}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU élevé sur {{ $labels.name }}"
+          description: "Le container {{ $labels.name }} utilise plus de 80% CPU depuis 5 minutes."
+
+      - alert: ContainerHighMemory
+        expr: container_memory_usage_bytes{name=~"infracontrol-.*"} / container_spec_memory_limit_bytes{name=~"infracontrol-.*"} * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Mémoire élevée sur {{ $labels.name }}"
+          description: "Le container {{ $labels.name }} utilise plus de 85% de mémoire."
+
+  # --- Alertes Système (Node Exporter) ---
+  - name: system_alerts
+    rules:
+      - alert: HighSystemCPU
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU système élevé"
+          description: "CPU système à {{ $value }}% depuis 5 minutes."
+
+      - alert: HighDiskUsage
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Espace disque faible"
+          description: "Moins de 15% d'espace disque disponible."
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Mémoire système élevée"
+          description: "Utilisation mémoire à {{ $value }}%."
+
+  # --- Alertes Services ---
+  - name: service_alerts
+    rules:
+      - alert: DjangoDown
+        expr: up{job="django"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Django est indisponible"
+          description: "Le service Django ne répond plus depuis 1 minute."
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis est indisponible"
+          description: "Le broker Redis ne répond plus."
+
+      - alert: PostgresDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL est indisponible"
+          description: "La base de données PostgreSQL ne répond plus."

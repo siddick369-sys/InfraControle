@@ -1,0 +1,12 @@
+<h2>⏱️ Planifier la commande</h2>
+
+<p><strong>Commande :</strong> {{ commande.nom }}</p>
+
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+
+  <button class="btn btn-warning">
+    📅 Planifier
+  </button>
+</form>

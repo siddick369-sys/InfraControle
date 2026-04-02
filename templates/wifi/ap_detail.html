@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Détails AP : {{ ap.nom }}{% endblock %}
+
+{% block content %}
+<div class="container py-4 bg-dark text-light min-vh-100">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-transparent p-0">
+            <li class="breadcrumb-item"><a href="{% url 'wifi:dashboard' %}" class="text-info">WiFi Dashboard</a></li>
+            <li class="breadcrumb-item active text-light" aria-current="page">{{ ap.nom }}</li>
+        </ol>
+    </nav>
+
+    <div class="row g-4">
+        <!-- AP Info Card -->
+        <div class="col-lg-4">
+            <div class="card bg-dark border-secondary h-100">
+                <div class="card-header border-secondary bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i> Informations AP</h5>
+                    {% if ap.statut == 'up' %}
+                    <span class="badge bg-success">ONLINE</span>
+                    {% else %}
+                    <span class="badge bg-danger">OFFLINE</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <div class="display-1 text-info opacity-25 mb-2"><i class="fas fa-satellite-dish"></i></div>
+                        <h3 class="fw-bold">{{ ap.nom }}</h3>
+                        <p class="text-muted small">{{ ap.adresse_ip }} | {{ ap.mac_adresse }}</p>
+                    </div>
+                    
+                    <ul class="list-group list-group-flush bg-transparent">
+                        <li class="list-group-item bg-transparent border-secondary text-light d-flex justify-content-between">
+                            <span class="text-muted">Modèle</span>
+                            <span>{{ ap.modele|default:"Générique WiFi 6" }}</span>
+                        </li>
+                        <li class="list-group-item bg-transparent border-secondary text-light d-flex justify-content-between">
+                            <span class="text-muted">Firmware</span>
+                            <span>{{ ap.firmware|default:"v2.4.1-stable" }}</span>
+                        </li>
+                        <li class="list-group-item bg-transparent border-secondary text-light d-flex justify-content-between">
+                            <span class="text-muted">CPU</span>
+                            <span class="{% if ap.cpu_usage > 80 %}text-danger{% else %}text-success{% endif %}">{{ ap.cpu_usage }}%</span>
+                        </li>
+                        <li class="list-group-item bg-transparent border-secondary text-light d-flex justify-content-between">
+                            <span class="text-muted">Mémoire</span>
+                            <span>{{ ap.ram_usage }}%</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Graph -->
+        <div class="col-lg-8">
+            <div class="card bg-dark border-secondary">
+                <div class="card-header border-secondary bg-transparent">
+                    <h5 class="mb-0"><i class="fas fa-chart-area me-2 text-warning"></i> Historique des Clients (24h)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="apHistoryChart" style="height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Clients Table -->
+        <div class="col-12 mt-4">
+            <div class="card bg-dark border-secondary">
+                <div class="card-header border-secondary bg-transparent">
+                    <h5 class="mb-0"><i class="fas fa-users me-2 text-info"></i> Clients Actuellement Connectés</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0">
+                            <thead class="text-muted smaller text-uppercase border-secondary">
+                                <tr>
+                                    <th class="ps-4">Client MAC</th>
+                                    <th>IP Address</th>
+                                    <th>Device</th>
+                                    <th>Signal (RSSI)</th>
+                                    <th>Dernière vue</th>
+                                </tr>
+                            </thead>
+                            <tbody class="border-secondary">
+                                {% for client in clients %}
+                                <tr>
+                                    <td class="ps-4 fw-bold text-info">{{ client.mac_adresse }}</td>
+                                    <td>{{ client.adresse_ip }}</td>
+                                    <td><i class="fas fa-mobile-screen me-1 opacity-50"></i> {{ client.device_type }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-2">{{ client.rssi }} dBm</div>
+                                            <div class="progress flex-grow-1" style="width: 60px; height: 4px;">
+                                                <div class="progress-bar {% if client.rssi < -70 %}bg-danger{% elif client.rssi < -50 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                     style="width: {{ client.rssi|add:100 }}%;"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-muted smaller">{{ client.derniere_connexion|timesince }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">Aucun client connecté pour le moment.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const labels = [{% for m in metric_history %}"{{ m.timestamp|date:'H:i' }}",{% endfor %}];
+        const data24 = [{% for m in metric_history %}{{ m.clients_2ghz }},{% endfor %}];
+        const data5 = [{% for m in metric_history %}{{ m.clients_5ghz }},{% endfor %}];
+
+        const ctx = document.getElementById('apHistoryChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '2.4 GHz',
+                        data: data24,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    },
+                    {
+                        label: '5 GHz',
+                        data: data5,
+                        borderColor: '#0ea5e9',
+                        backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: '#94a3b8' } }
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.05)' }, border: { display: false }, ticks: { color: '#64748b' } },
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, border: { display: false }, ticks: { color: '#64748b' } }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

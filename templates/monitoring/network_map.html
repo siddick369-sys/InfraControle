@@ -1,0 +1,433 @@
+{% extends base_template|default:"base.html" %}
+{% load static %}
+
+{% block title %}Topologie Réseau Interactive - InfraControl{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --sidebar-width: 350px;
+        --control-panel-height: 80px;
+        --bg-darker: #0f172a;
+        --accent-cyan: #0ea5e9;
+    }
+
+    .topology-wrapper {
+        position: relative;
+        overflow: hidden;
+        border-radius: 12px;
+        background: var(--bg-darker);
+        display: flex;
+    }
+
+    #network-canvas {
+        flex-grow: 1;
+        height: 100%;
+        cursor: grab;
+    }
+
+    #network-canvas:active { cursor: grabbing; }
+
+    /* --- Sidebar Info --- */
+    #info-sidebar {
+        width: var(--sidebar-width);
+        background: rgba(30, 41, 59, 0.95);
+        backdrop-filter: blur(10px);
+        border-left: 1px solid rgba(148, 163, 184, 0.1);
+        padding: 1.5rem;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        position: absolute;
+        right: 0; top: 0; bottom: 0;
+        z-index: 1000;
+        color: #f1f5f9;
+        overflow-y: auto;
+    }
+    #info-sidebar.active { transform: translateX(0); }
+
+    /* --- Floating Controls --- */
+    .topology-controls {
+        position: absolute;
+        top: 20px; left: 20px;
+        z-index: 500;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        width: 320px;
+    }
+
+    .glass-card {
+        background: rgba(30, 41, 59, 0.8);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 10px;
+        padding: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    .search-box {
+        position: relative;
+    }
+    .search-box i {
+        position: absolute;
+        left: 12px; top: 50%;
+        transform: translateY(-50%);
+        color: var(--accent-cyan);
+    }
+    .search-box input {
+        width: 100%;
+        background: rgba(0,0,0,0.3);
+        border: 1px solid var(--accent-cyan);
+        border-radius: 8px;
+        padding: 8px 12px 8px 35px;
+        color: white;
+        font-size: 0.9rem;
+    }
+
+    .filter-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+    }
+    .pill {
+        font-size: 0.75rem;
+        padding: 4px 10px;
+        border-radius: 20px;
+        border: 1px solid rgba(255,255,255,0.2);
+        color: #94a3b8;
+        cursor: pointer;
+        transition: 0.2s;
+        text-transform: uppercase;
+    }
+    .pill.active {
+        background: var(--accent-cyan);
+        color: white;
+        border-color: var(--accent-cyan);
+    }
+
+    .view-actions {
+        position: absolute;
+        bottom: 20px; left: 20px;
+        z-index: 500;
+        display: flex;
+        gap: 10px;
+    }
+
+    /* Metric bars */
+    .metric-item { margin-bottom: 20px; }
+    .bar-bg { background: rgba(0,0,0,0.4); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 5px; }
+    .bar-fill { height: 100%; background: var(--accent-cyan); transition: width 0.5s ease; }
+
+    /* Navigation Controls */
+    .nav-controls {
+        position: absolute;
+        bottom: 80px; left: 20px;
+        z-index: 500;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        align-items: center;
+    }
+    .nav-row { display: flex; gap: 5px; }
+    .btn-nav {
+        width: 35px; height: 35px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(30, 41, 59, 0.8);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        color: white;
+        border-radius: 6px;
+        backdrop-filter: blur(4px);
+    }
+    .btn-nav:hover { background: var(--accent-cyan); color: white; border-color: var(--accent-cyan); }
+
+</style>
+
+<div class="topology-wrapper" style="height: {% if is_embedded %}100vh{% else %}calc(100vh - 120px){% endif %};">
+    <!-- Overlay Controls -->
+    <div class="topology-controls">
+        <!-- Search -->
+        <div class="glass-card search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="node-search" placeholder="Rechercher IP ou Nom...">
+        </div>
+
+        <!-- Filters -->
+        <div class="glass-card">
+            <span class="small text-muted mb-2 d-block">FILTRER PAR TYPE</span>
+            <div class="filter-pills" id="type-filters">
+                <div class="pill active" data-type="all">Tous</div>
+                <div class="pill" data-type="routeur">Routeurs</div>
+                <div class="pill" data-type="switch">Switchs</div>
+                <div class="pill" data-type="serveur">Serveurs</div>
+            </div>
+            <span class="small text-muted mt-3 mb-2 d-block">FILTRER PAR STATUT</span>
+            <div class="filter-pills" id="status-filters">
+                <div class="pill active" data-status="all">Tous</div>
+                <div class="pill" data-status="en ligne">Online</div>
+                <div class="pill" data-status="hors ligne">Offline</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Actions -->
+    <div class="view-actions">
+        <button class="btn btn-sm btn-dark border-secondary" id="btn-reorganize" title="Disposition automatique">
+            <i class="fas fa-project-diagram"></i>
+        </button>
+        <button class="btn btn-sm btn-dark border-secondary" id="btn-fit" title="Centrer la vue">
+            <i class="fas fa-expand"></i>
+        </button>
+    </div>
+
+    <!-- Navigation Buttons -->
+    <div class="nav-controls">
+        <button class="btn-nav" id="nav-up" title="Monter"><i class="fas fa-chevron-up"></i></button>
+        <div class="nav-row">
+            <button class="btn-nav" id="nav-left" title="Gauche"><i class="fas fa-chevron-left"></i></button>
+            <button class="btn-nav" id="nav-down" title="Descendre"><i class="fas fa-chevron-down"></i></button>
+            <button class="btn-nav" id="nav-right" title="Droite"><i class="fas fa-chevron-right"></i></button>
+        </div>
+    </div>
+
+    <!-- Main Canvas -->
+    <div id="network-canvas"></div>
+
+    <!-- Sidebar Details -->
+    <div id="info-sidebar">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="m-0" id="sb-title">Équipement</h4>
+            <button class="btn btn-sm btn-link text-white p-0" id="close-sidebar"><i class="fas fa-times"></i></button>
+        </div>
+
+        <div class="text-center mb-4">
+            <img id="sb-icon" src="" style="width: 80px; height: 80px;" class="mb-2">
+            <div id="sb-status-badge" class="badge rounded-pill d-block mx-auto" style="width: fit-content;">En ligne</div>
+        </div>
+
+        <div class="mb-4">
+            <h6 class="text-info border-bottom border-secondary pb-1 small text-uppercase">Informations</h6>
+            <div class="row g-2 mt-1 small">
+                <div class="col-4 text-muted">Type:</div><div class="col-8" id="sb-type">-</div>
+                <div class="col-4 text-muted">IP:</div><div class="col-8 text-info font-monospace" id="sb-ip">-</div>
+                <div class="col-4 text-muted">Loc:</div><div class="col-8" id="sb-loc">-</div>
+            </div>
+        </div>
+
+        <div id="sb-metrics-panel">
+            <h6 class="text-info border-bottom border-secondary pb-1 small text-uppercase">Performance</h6>
+            
+            <div class="metric-item mt-3">
+                <div class="d-flex justify-content-between small">
+                    <span class="text-muted">CPU</span>
+                    <span id="sb-cpu-val">0%</span>
+                </div>
+                <div class="bar-bg"><div class="bar-fill" id="sb-cpu-bar"></div></div>
+            </div>
+
+            <div class="metric-item">
+                <div class="d-flex justify-content-between small">
+                    <span class="text-muted">RAM</span>
+                    <span id="sb-ram-val">0%</span>
+                </div>
+                <div class="bar-bg"><div class="bar-fill" id="sb-ram-bar"></div></div>
+            </div>
+        </div>
+
+        <div class="mt-5 d-grid gap-2">
+            <a href="#" id="sb-link-detail" class="btn btn-outline-info btn-sm">Afficher les détails</a>
+            <button class="btn btn-outline-light btn-sm" id="btn-sidebar-ping"><i class="fas fa-bolt me-1"></i> Tester Connexion</button>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<script>
+    const IMG_DIR = "https://img.icons8.com/color/96/";
+    const ICONS = {
+        'routeur': 'router.png',
+        'switch': 'switch.png',
+        'serveur': 'server.png',
+        'serveur_win': 'windows-10.png',
+        'pc_win': 'laptop.png',
+        'parefeu': 'firewall.png',
+        'default': 'network-card.png'
+    };
+
+    let network, nodes, edges;
+    const container = document.getElementById("network-canvas");
+    const sidebar = document.getElementById("info-sidebar");
+
+    // Initialisation du Graphe
+    async function initTopology() {
+        const response = await fetch("{% url 'network_map_api' %}");
+        const data = await response.json();
+
+        nodes = new vis.DataSet(data.nodes.map(n => ({
+            ...n,
+            image: IMG_DIR + (ICONS[n.group] || ICONS['default']),
+            shape: 'image',
+            size: 35,
+            font: { color: '#E2E8F0', size: 12, face: 'Inter', strokeWidth: 4, strokeColor: 'rgba(15, 23, 42, 0.8)' }
+        })));
+
+        edges = new vis.DataSet(data.links.map(l => ({
+            ...l,
+            color: { color: l.type === 'fibre' ? '#06b6d4' : '#475569', opacity: 0.6 },
+            width: l.type === 'fibre' ? 3 : 2,
+            font: { color: '#94a3b8', size: 10, strokeWidth: 0, align: 'top' }
+        })));
+
+        const options = {
+            physics: {
+                enabled: false,
+                stabilization: { iterations: 100 }
+            },
+            interaction: {
+                hover: true,
+                tooltipDelay: 100,
+                hideEdgesOnDrag: true
+            },
+            nodes: {
+                borderWidth: 2,
+                shadow: { enabled: true, color: 'rgba(0,0,0,0.5)', size: 5, x: 0, y: 3 }
+            }
+        };
+
+        network = new vis.Network(container, { nodes, edges }, options);
+
+        // Actions
+        network.on("click", handleNodeClick);
+        network.on("dragEnd", handleNodeDragEnd);
+        
+        // Auto-layout si nécessaire
+        const nodesWithoutPos = data.nodes.filter(n => n.x === null);
+        if (nodesWithoutPos.length > 0) {
+            console.log("Auto-layout trigger...");
+            network.setOptions({ physics: { enabled: true, barnesHut: { gravitationalConstant: -10000 } } });
+            setTimeout(() => { network.setOptions({ physics: { enabled: false } }); }, 2000);
+        }
+    }
+
+    // Gestion du clic (Sidebar)
+    function handleNodeClick(params) {
+        if (params.nodes.length > 0) {
+            const nodeId = params.nodes[0];
+            const nodeData = nodes.get(nodeId);
+            showSidebar(nodeData);
+        } else {
+            sidebar.classList.remove("active");
+        }
+    }
+
+    function showSidebar(node) {
+        document.getElementById("sb-title").innerText = node.label;
+        document.getElementById("sb-icon").src = node.image;
+        document.getElementById("sb-type").innerText = node.metrics.type;
+        document.getElementById("sb-ip").innerText = node.metrics.ip;
+        document.getElementById("sb-loc").innerText = node.metrics.loc || '-';
+        
+        const badge = document.getElementById("sb-status-badge");
+        badge.innerText = node.status;
+        badge.className = "badge rounded-pill d-block mx-auto " + (node.status === 'en ligne' ? 'bg-success' : 'bg-danger');
+
+        // Metrics
+        const cpu = node.metrics.cpu || 0;
+        const ram = node.metrics.ram || 0;
+        document.getElementById("sb-cpu-val").innerText = cpu + "%";
+        document.getElementById("sb-cpu-bar").style.width = cpu + "%";
+        document.getElementById("sb-ram-val").innerText = ram + "%";
+        document.getElementById("sb-ram-bar").style.width = ram + "%";
+
+        document.getElementById("sb-link-detail").href = "/monitoring/equipement/" + node.id + "/";
+        
+        sidebar.classList.add("active");
+    }
+
+    // Persistance drag-and-drop
+    async function handleNodeDragEnd(params) {
+        if (params.nodes.length > 0) {
+            const nodeId = params.nodes[0];
+            const pos = network.getPositions([nodeId])[nodeId];
+            
+            fetch("{% url 'save_node_position' %}", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+                body: JSON.stringify({ id: nodeId, x: pos.x, y: pos.y })
+            });
+        }
+    }
+
+    // Recherche
+    document.getElementById("node-search").addEventListener("input", (e) => {
+        const val = e.target.value.toLowerCase();
+        const allNodes = nodes.get();
+        
+        const updates = allNodes.map(n => {
+            const matches = n.label.toLowerCase().includes(val) || n.metrics.ip.includes(val);
+            return { id: n.id, opacity: val ? (matches ? 1 : 0.2) : 1 };
+        });
+        
+        nodes.update(updates);
+    });
+
+    // Filtres
+    document.querySelectorAll(".pill").forEach(pill => {
+        pill.addEventListener("click", () => {
+            const group = pill.closest('.filter-pills').id;
+            document.querySelectorAll(`#${group} .pill`).forEach(p => p.classList.remove("active"));
+            pill.classList.add("active");
+            applyFilters();
+        });
+    });
+
+    function applyFilters() {
+        const typeFilter = document.querySelector("#type-filters .pill.active").dataset.type;
+        const statusFilter = document.querySelector("#status-filters .pill.active").dataset.status;
+        
+        const allNodes = nodes.get();
+        const updates = allNodes.map(n => {
+            const tMatch = typeFilter === 'all' || n.group === typeFilter;
+            const sMatch = statusFilter === 'all' || n.status === statusFilter;
+            return { id: n.id, hidden: !(tMatch && sMatch) };
+        });
+        nodes.update(updates);
+    }
+
+    // UI Buttons
+    document.getElementById("btn-sidebar-ping").onclick = () => {
+        const ip = document.getElementById("sb-ip").innerText;
+        alert("Lancement du test de connectivité vers " + ip + "...");
+        // On pourrait rediriger vers la vue de test : 
+        const nodeId = nodes.get({ filter: (n) => n.metrics.ip === ip })[0].id;
+        window.location.href = "/monitoring/equipements/" + nodeId + "/tester/";
+    };
+
+    document.getElementById("btn-fit").onclick = () => network.fit({ animation: true });
+    document.getElementById("btn-reorganize").onclick = () => {
+        network.setOptions({ physics: { enabled: true } });
+        setTimeout(() => network.setOptions({ physics: { enabled: false } }), 2000);
+    };
+    document.getElementById("close-sidebar").onclick = () => sidebar.classList.remove("active");
+
+    // Pan Logic
+    const PAN_STEP = 100;
+    function pan(dx, dy) {
+        const currentView = network.getViewPosition();
+        network.moveTo({
+            position: { x: currentView.x + dx, y: currentView.y + dy },
+            animation: { duration: 200, easingFunction: 'easeInOutQuad' }
+        });
+    }
+
+    document.getElementById("nav-up").onclick = () => pan(0, -PAN_STEP);
+    document.getElementById("nav-down").onclick = () => pan(0, PAN_STEP);
+    document.getElementById("nav-left").onclick = () => pan(-PAN_STEP, 0);
+    document.getElementById("nav-right").onclick = () => pan(PAN_STEP, 0);
+
+    initTopology();
+</script>
+{% endblock %}

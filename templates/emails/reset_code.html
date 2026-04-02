@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>🔐 Réinitialisation de mot de passe - InfraControl</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background-color: #f5f6fa;
+      padding: 30px;
+      color: #333;
+    }
+    .email-container {
+      background-color: #ffffff;
+      max-width: 600px;
+      margin: 0 auto;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      padding: 25px;
+    }
+    .header {
+      text-align: center;
+      border-bottom: 3px solid #002b5b;
+      padding-bottom: 15px;
+      margin-bottom: 20px;
+    }
+    .header h1 {
+      color: #002b5b;
+      font-size: 24px;
+      margin: 0;
+    }
+    .content {
+      font-size: 16px;
+      line-height: 1.6;
+    }
+    .code-box {
+      background-color: #f0f4ff;
+      color: #002b5b;
+      text-align: center;
+      font-size: 28px;
+      font-weight: bold;
+      letter-spacing: 3px;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 25px 0;
+      border: 1px solid #cfd8ff;
+    }
+    .footer {
+      font-size: 13px;
+      text-align: center;
+      color: #777;
+      margin-top: 25px;
+    }
+    .footer a {
+      color: #002b5b;
+      text-decoration: none;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="email-container">
+    <div class="header">
+      <h1>🔐 Réinitialisation de mot de passe</h1>
+    </div>
+
+    <div class="content">
+      <p>Bonjour <strong>{{ username }}</strong>,</p>
+      <p>Vous avez demandé à réinitialiser votre mot de passe sur <b>InfraControl</b>.</p>
+      <p>Veuillez saisir le code ci-dessous sur la page de vérification :</p>
+
+      <div class="code-box">{{ code }}</div>
+
+      <p>Ce code est valable pendant <b>10 minutes</b>.</p>
+
+      <p>Si vous n’êtes pas à l’origine de cette demande, ignorez simplement cet e-mail.</p>
+
+      <p>Merci de votre confiance,</p>
+      <p><b>L’équipe InfraControl</b></p>
+    </div>
+
+    <div class="footer">
+      <p>© {{ now|date:"Y" }} InfraControl — Sécurisez vos systèmes avec confiance.</p>
+    </div>
+  </div>
+
+</body>
+</html>

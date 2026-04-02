@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+{% block title %}Moteur de Remédiation - InfraControl{% endblock %}
+
+{% block content %}
+<style>
+    .remed-container {
+        padding: 2rem;
+        color: var(--text-main);
+    }
+    .glass-card {
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        padding: 1.5rem;
+        height: 100%;
+    }
+    .glass-card:hover {
+        border-color: var(--border-tech);
+    }
+    .btn-epic {
+        background: linear-gradient(45deg, #0ea5e9, #2563eb);
+        border: none;
+        color: white;
+        box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4);
+    }
+    .btn-epic:hover {
+        background: linear-gradient(45deg, #2563eb, #0ea5e9);
+        box-shadow: 0 6px 20px rgba(14, 165, 233, 0.6);
+        color: white;
+    }
+    
+    .code-block {
+        background: #020617;
+        color: #38bdf8;
+        padding: 10px;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.85rem;
+        border: 1px solid rgba(56, 189, 248, 0.2);
+        white-space: pre-wrap;
+    }
+    
+    /* Modal Glass */
+    .modal-content {
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--accent-cyan);
+        color: white;
+    }
+    .modal-header {
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .modal-footer {
+        border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    .form-control, .form-select {
+        background: rgba(2, 6, 23, 0.5);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: white;
+    }
+    .form-control:focus, .form-select:focus {
+        background: rgba(2, 6, 23, 0.8);
+        border-color: var(--accent-cyan);
+        color: white;
+        box-shadow: 0 0 0 0.25rem rgba(14, 165, 233, 0.25);
+    }
+</style>
+
+<div class="remed-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1" style="font-weight: 300;">Moteur de <span style="font-weight: 700; color: var(--accent-cyan);">Remédiation</span></h2>
+            <p class="text-muted m-0">Gestion des règles de détection et résolution automatiques des anomalies.</p>
+        </div>
+        <div>
+            <button class="btn btn-epic px-4 py-2 rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#addRuleModal">
+                <i class="fas fa-plus me-2"></i> Nouvelle Règle
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-12">
+            <h4 class="mb-3 text-muted" style="font-weight: 300;"><i class="fas fa-robot me-2 text-info"></i> Règles Dynamiques (IA & Auto)</h4>
+            <div class="row g-3">
+                {% for regle in regles %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="glass-card">
+                        <div class="d-flex justify-content-between">
+                            <h5 class="mb-1 text-white">{{ regle.nom }}</h5>
+                            <span class="badge bg-secondary bg-opacity-25 border border-secondary text-secondary">{{ regle.get_os_cible_display }}</span>
+                        </div>
+                        <hr style="border-color: rgba(255,255,255,0.1);">
+                        
+                        <p class="mb-1 small text-muted text-uppercase fw-bold">Commande de Détection :</p>
+                        <div class="code-block mb-3">{{ regle.cmd_detection }}</div>
+                        
+                        <p class="mb-1 small text-muted text-uppercase fw-bold">Script de Remédiation :</p>
+                        <div class="code-block" style="color: #10b981; border-color: rgba(16,185,129,0.2);">{{ regle.cmd_remediation }}</div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="glass-card text-center py-5">
+                        <i class="fas fa-shield-alt fs-1 mb-3 text-muted opacity-50"></i>
+                        <h5 class="text-muted">Aucune règle définie.</h5>
+                        <p class="text-muted small">Ajoutez une règle pour commencer la détection et la résolution automatiques d'anomalies.</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- History Section -->
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="glass-card">
+                <h5 class="mb-4 text-muted" style="font-weight: 300;"><i class="fas fa-history me-2 text-primary"></i> Historique des Remédiations</h5>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover table-borderless align-middle" style="background: transparent;">
+                        <thead style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                            <tr class="text-muted small text-uppercase">
+                                <th>Date</th>
+                                <th>Équipement</th>
+                                <th>Action Déclenchée</th>
+                                <th>Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in historique %}
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                <td class="text-muted small">{{ log.date_action|date:"d/m/Y H:i:s" }}</td>
+                                <td><i class="fas fa-microchip text-secondary me-2"></i> {{ log.equipement.nom }} ({{ log.equipement.adresse_ip }})</td>
+                                <td>{{ log.action.nom }}</td>
+                                <td>
+                                    {% if log.statut == 'succes' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success"><i class="fas fa-check me-1"></i> Réussite</span>
+                                    {% else %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger"><i class="fas fa-times me-1"></i> Échec</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">L'historique est vide.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ajout de Règle -->
+<div class="modal fade" id="addRuleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg border-0">
+        <div class="modal-content shadow-lg">
+            <div class="modal-header border-bottom border-secondary">
+                <h5 class="modal-title fw-bold text-white"><i class="fas fa-plus-circle text-info me-2"></i> Ajouter une Nouvelle Règle</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="addRuleForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold">Nom de l'anomalie</label>
+                        <input type="text" class="form-control" name="nom" required placeholder="Ex: Surcharge CPU, Processus Zombie...">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold">OS Cible</label>
+                        <select class="form-select" name="os_cible" required>
+                            <option value="linux">Linux</option>
+                            <option value="windows">Windows</option>
+                            <option value="all">Tous (Multi-OS)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold">Commande de Détection</label>
+                        <textarea class="form-control text-info" style="font-family: monospace;" name="cmd_detection" rows="2" required placeholder="ps -aux | awk '{print $8}' | grep Z"></textarea>
+                        <div class="form-text text-secondary">La commande SSH permettant d'isoler l'anomalie sur la machine cible.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold">Script de Remédiation</label>
+                        <textarea class="form-control text-success" style="font-family: monospace;" name="cmd_remediation" rows="4" required placeholder="kill -9 $(ps -A -ostat,ppid | grep -e '[zZ]'| awk '{ print $2 }')"></textarea>
+                        <div class="form-text text-secondary">Le ou les commandes à exécuter pour corriger l'anomalie.</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-top border-secondary">
+                <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-epic rounded-pill px-4" id="btnSaveRule">
+                    <i class="fas fa-save me-1"></i> Sauvegarder
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const btnSaveRule = document.getElementById('btnSaveRule');
+    const addRuleForm = document.getElementById('addRuleForm');
+
+    btnSaveRule.addEventListener('click', async () => {
+        if (!addRuleForm.checkValidity()) {
+            addRuleForm.reportValidity();
+            return;
+        }
+
+        const formData = new FormData(addRuleForm);
+        
+        btnSaveRule.disabled = true;
+        btnSaveRule.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Sauvegarde...';
+
+        try {
+            const response = await fetch("{% url 'remediation:ajouter_regle' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                window.location.reload();
+            } else {
+                alert("Erreur : " + data.message);
+                btnSaveRule.disabled = false;
+                btnSaveRule.innerHTML = '<i class="fas fa-save me-1"></i> Sauvegarder';
+            }
+        } catch (error) {
+            console.error('Erreur lors de la sauvegarde:', error);
+            alert("Erreur de connexion serveur.");
+            btnSaveRule.disabled = false;
+            btnSaveRule.innerHTML = '<i class="fas fa-save me-1"></i> Sauvegarder';
+        }
+    });
+});
+</script>
+{% endblock %}

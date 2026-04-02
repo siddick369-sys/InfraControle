@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f7f6; color: #333; padding: 20px; }
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 800px; margin: auto; }
+        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        h2 { color: #2980b9; margin-top: 20px; font-size: 18px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f9fa; color: #555; }
+        .statut-resolu { color: #27ae60; font-weight: bold; }
+        .statut-ouvert { color: #e74c3c; font-weight: bold; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; color: white; background: #34495e; float: right; }
+        .footer { margin-top: 30px; font-size: 12px; color: #7f8c8d; text-align: center; border-top: 1px solid #eee; padding-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Rapport Quotidien InfraControl</h1>
+        <p>Bonjour Administrateur,</p>
+        <p>Voici le résumé des <strong>{{ total_incidents }}</strong> anomalies survenues sur votre infrastructure depuis la dernière notification.</p>
+
+        {% for equipement, inc_list in incidents_par_equipement.items %}
+            <h2>🖥️ Équipement : {{ equipement }} <span class="badge">{{ inc_list|length }} incident(s)</span></h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Heure de détection</th>
+                        <th>Anomalie</th>
+                        <th>Niveau</th>
+                        <th>Statut actuel</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inc in inc_list %}
+                    <tr>
+                        <td width="20%">{{ inc.date_debut|date:"d/m/Y H:i" }}</td>
+                        <td width="50%"><strong>{{ inc.titre }}</strong><br><small style="color:#666;">{{ inc.description }}</small></td>
+                        <td width="15%">{{ inc.get_niveau_display|upper }}</td>
+                        <td width="15%" class="{% if inc.statut == 'résolu' %}statut-resolu{% else %}statut-ouvert{% endif %}">
+                            {{ inc.get_statut_display|upper }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endfor %}
+
+        <div class="footer">
+            Cet email a été généré automatiquement par l'Agent InfraControl le {{ date|date:"d/m/Y à H:i" }}.
+        </div>
+    </div>
+</body>
+</html>

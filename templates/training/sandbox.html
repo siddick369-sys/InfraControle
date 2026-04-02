@@ -1,0 +1,284 @@
+{% extends 'base.html' %}
+{% block title %}EdTech Sandbox - {{ session.titre_scenario }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    
+    <!-- En-tête / Dashboard Session -->
+    <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-dark border border-secondary rounded shadow">
+        <div>
+            <h4 class="mb-0 text-info"><i class="fas fa-shield-alt me-2"></i>{{ session.titre_scenario }}</h4>
+            <small class="text-muted">Équipement Cible : {{ session.incident_source.equipement.nom|default:"Non spécifié" }} | Tentatives : <span id="cli-attempts">{{ session.tentatives_cli }}</span> / 5</small>
+        </div>
+        <div class="text-end">
+            {% if session.statut == 'en_cours' %}
+                <span class="badge bg-warning text-dark fs-6"><i class="fas fa-spinner fa-spin me-1"></i>En cours</span>
+            {% elif session.statut == 'termine_succes' %}
+                <span class="badge bg-success fs-6"><i class="fas fa-check-circle me-1"></i>Succès ({{ session.score }} pts)</span>
+            {% else %}
+                <span class="badge bg-danger fs-6"><i class="fas fa-times-circle me-1"></i>Échec</span>
+            {% endif %}
+            <a href="{% url 'training:dashboard' %}" class="btn btn-sm btn-outline-light ms-3"><i class="fas fa-arrow-left me-1"></i>Retour</a>
+        </div>
+    </div>
+
+    <!-- Briefing IA -->
+    {% if session.description_scenario %}
+    <div class="alert alert-danger border-danger text-light mb-3" style="background: rgba(220, 53, 69, 0.1);">
+        <i class="fas fa-exclamation-triangle fa-lg me-2 text-danger"></i> <strong>Alerte NOC Simulée :</strong>
+        <span class="ms-2 font-monospace">{{ session.description_scenario }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Nouvelle structure : Graphe en haut (pleine largeur), Chat & CLI en bas -->
+    <div class="row mb-3" style="height: 75vh;">
+        <!-- HAUT : Sandbox Visuelle (Carte Réseau Replay) -->
+        <div class="col-12 h-100">
+            <div class="card bg-dark border-secondary h-100 shadow">
+                <div class="card-header bg-secondary text-white">
+                    <i class="fas fa-network-wired me-2"></i> Topologie Réseau (Mode Simulation)
+                </div>
+                <div class="card-body p-0" style="position: relative; overflow: hidden; background-color: #0b1120;">
+                    <iframe src="/monitoring/network/map/?simulation_mode=1&target={{ session.incident_source.equipement.adresse_ip }}" 
+                            style="width: 100%; height: 100%; border: none;"></iframe>
+                    <!-- Overlay pour l'effet "Simulation" -->
+                    <div style="position: absolute; top: 10px; right: 10px; pointer-events: none;">
+                        <span class="badge bg-danger opacity-75 fs-6"><i class="fas fa-record-vinyl fa-spin me-1"></i>REPLAY HISTORIQUE</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3" style="height: 40vh; min-height: 350px;">
+        <!-- BAS GAUCHE : Chatbot IA -->
+        <div class="col-lg-5 h-100 d-flex flex-column">
+            <div class="card bg-dark border-secondary shadow flex-grow-1 d-flex flex-column mb-0" style="height: 100%;">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-robot me-2"></i> Console d'Investigation IA</span>
+                    <small>Demandez des logs ou des diagnostics</small>
+                </div>
+                <div class="card-body overflow-auto p-3" id="chat-history" style="font-family: 'Courier New', monospace; font-size: 0.9rem;">
+                    {% for msg in messages %}
+                        {% if msg.role == 'assistant' %}
+                            <div class="text-info mb-3"><strong>[Système]</strong> {{ msg.contenu|linebreaksbr }}</div>
+                        {% else %}
+                            <div class="text-success mb-3 ms-4"><strong>[Vous]</strong> {{ msg.contenu|linebreaksbr }}</div>
+                        {% endif %}
+                    {% endfor %}
+                    <!-- Indicateur de frappe (caché) -->
+                    <div id="chat-typing" class="text-muted d-none"><i class="fas fa-circle-notch fa-spin me-2"></i> Le système analyse...</div>
+                </div>
+                {% if session.statut == 'en_cours' %}
+                <div class="card-footer bg-transparent border-secondary p-2">
+                    <form id="chat-form" class="d-flex">
+                        <input type="text" id="chat-input" class="form-control bg-dark text-success border-secondary me-2" style="font-family: monospace;" placeholder="ex: Quels sont les logs de nginx sur ce serveur ?" autocomplete="off">
+                        <button type="submit" class="btn btn-info" id="btn-chat"><i class="fas fa-paper-plane"></i></button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- BAS DROITE : Terminal CLI (Évaluation) -->
+        <div class="col-lg-7 h-100 d-flex flex-column">
+            <div class="card bg-black border-success shadow flex-grow-1 d-flex flex-column" style="height: 100%; border-width: 2px !important;">
+                <div class="card-header border-success text-success bg-transparent">
+                    <i class="fas fa-terminal me-2"></i> Terminal de Remédiation (Action Libre)
+                </div>
+                <div class="card-body p-3 d-flex flex-column justify-content-between">
+                    {% if session.statut == 'en_cours' %}
+                        <div class="text-success mb-2" style="font-family: monospace; font-size: 0.9rem;">
+                            > root@infracontrol:~# Entrez votre commande pour résoudre l'incident.
+                        </div>
+                        <div class="input-group mb-3">
+                            <span class="input-group-text bg-transparent border-success text-success border-end-0" style="font-family: monospace;">$</span>
+                            <input type="text" id="cli-input" class="form-control bg-black text-light border-start-0 border-success shadow-none" style="font-family: monospace; font-size: 1.1rem;" placeholder="systemctl restart ..." autocomplete="off">
+                        </div>
+                        <div class="text-end mt-auto">
+                            <button id="btn-validate" class="btn btn-outline-success px-4 font-monospace"><i class="fas fa-play me-2"></i>EXÉCUTER & VALIDER</button>
+                        </div>
+                    {% else %}
+                        <div class="text-center mt-3 my-auto">
+                            <h5 class="text-light">Session Terminée</h5>
+                            <button class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#debriefingModal">Voir le Debriefing IA</button>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modale de Debriefing -->
+<div class="modal fade" id="debriefingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content bg-dark text-light border-info">
+            <div class="modal-header border-info">
+                <h5 class="modal-title"><i class="fas fa-graduation-cap me-2 text-info"></i> Debriefing IA de l'Incident</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="font-family: 'Segoe UI', sans-serif;">
+                <div id="debriefing-content">
+                    <!-- Rempli dynamiquement si validation -->
+                    {% if session.statut != 'en_cours' %}
+                        <p><strong>Statut final :</strong> {% if session.statut == 'termine_succes' %}<span class="text-success">Succès</span>{% else %}<span class="text-danger">Échec</span>{% endif %}</p>
+                        <p><strong>Score :</strong> {{ session.score }} / 100</p>
+                        <hr class="border-secondary">
+                        <p><strong>Vraie cause racine (Historique) :</strong><br> <span class="text-muted">{{ session.incident_source.analyseia.cause_racine }}</span></p>
+                        <p><strong>Vraie solution appliquée :</strong><br> <pre class="bg-black text-info p-2 rounded">{{ session.incident_source.analyseia.solution_humaine }}</pre></p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="modal-footer border-info">
+                <a href="{% url 'training:dashboard' %}" class="btn btn-outline-light">Quitter la Sandbox</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const chatHistory = document.getElementById('chat-history');
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const chatTyping = document.getElementById('chat-typing');
+    const btnValidate = document.getElementById('btn-validate');
+    const cliInput = document.getElementById('cli-input');
+    const cliAttempts = document.getElementById('cli-attempts');
+
+    // Auto-scroll chat au chargement
+    if(chatHistory) {
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+
+    // GESTION DU CHATBOT
+    if(chatForm) {
+        chatForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const msg = chatInput.value.trim();
+            if(!msg) return;
+
+            // Ajouter le message user dans l'UI
+            chatHistory.insertAdjacentHTML('beforeend', `<div class="text-success mb-3 ms-4"><strong>[Vous]</strong> ${msg}</div>`);
+            chatInput.value = '';
+            chatTyping.classList.remove('d-none');
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+
+            // Appel API
+            fetch("{% url 'training:sandbox_chat' session.id %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: msg })
+            })
+            .then(res => res.json())
+            .then(data => {
+                chatTyping.classList.add('d-none');
+                if(data.status === 'success') {
+                    chatHistory.insertAdjacentHTML('beforeend', `<div class="text-info mb-3"><strong>[Système]</strong> ${data.reply.replace(/\\n/g, '<br>')}</div>`);
+                } else {
+                    chatHistory.insertAdjacentHTML('beforeend', `<div class="text-danger mb-3"><strong>[Erreur]</strong> Impossible de joindre le système.</div>`);
+                }
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+            })
+            .catch(err => {
+                chatTyping.classList.add('d-none');
+                chatHistory.insertAdjacentHTML('beforeend', `<div class="text-danger mb-3"><strong>[Erreur Réseau]</strong></div>`);
+            });
+        });
+    }
+
+    // GESTION DE LA VALIDATION CLI
+    if(btnValidate) {
+        btnValidate.addEventListener('click', function() {
+            const command = cliInput.value.trim();
+            if(!command) {
+                alert("Veuillez entrer une commande !");
+                return;
+            }
+
+            const ogHTML = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Évaluation IA...';
+            this.disabled = true;
+
+            fetch("{% url 'training:sandbox_validate' session.id %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ commande: command })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'success') {
+                    cliAttempts.textContent = data.tentatives;
+                    
+                    const modalBody = document.getElementById('debriefing-content');
+                    let resultHtml = `
+                        <div class="text-center mb-4">
+                            ${data.est_correct 
+                                ? '<i class="fas fa-check-circle fa-4x text-success"></i><h3 class="text-success mt-2">Mission Accomplie !</h3>' 
+                                : '<i class="fas fa-times-circle fa-4x text-danger"></i><h3 class="text-danger mt-2">Échec de la manœuvre</h3>'}
+                            <p class="lead mt-3">${data.est_correct ? 'Votre commande a résolu l\'incident.' : 'La commande proposée n\'adresse pas la root cause.'}</p>
+                        </div>
+                        <div class="alert bg-black border-secondary text-light">
+                            <h6 class="text-info"><i class="fas fa-robot me-2"></i> Debriefing IA :</h6>
+                            <p class="mb-0">${data.debriefing.replace(/\\n/g, '<br>')}</p>
+                        </div>
+                    `;
+
+                    if(data.session_statut !== 'en_cours') {
+                        resultHtml += `
+                            <div class="mt-4 pt-3 border-top border-secondary text-center">
+                                <h5>Score Final : <span class="${data.est_correct ? 'text-success' : 'text-danger'}">${data.score} / 100</span></h5>
+                                <p class="text-muted">La session est désormais clôturée.</p>
+                            </div>
+                        `;
+                    } else {
+                        resultHtml += `<p class="mt-3 text-warning text-center"><i class="fas fa-info-circle me-1"></i> Il vous reste ${5 - data.tentatives} tentative(s).</p>`;
+                    }
+
+                    modalBody.innerHTML = resultHtml;
+                    
+                    // Afficher la modale de feedback
+                    const myModal = new bootstrap.Modal(document.getElementById('debriefingModal'));
+                    myModal.show();
+
+                    // Si terminé, recharger la page quand on quitte la modale pour lock l'UI
+                    if(data.session_statut !== 'en_cours') {
+                        document.getElementById('debriefingModal').addEventListener('hidden.bs.modal', function () {
+                            location.reload();
+                        });
+                    } else {
+                        // Reset bouton
+                        btnValidate.innerHTML = ogHTML;
+                        btnValidate.disabled = false;
+                        cliInput.value = '';
+                    }
+
+                } else {
+                    alert('Erreur: ' + data.error);
+                    btnValidate.innerHTML = ogHTML;
+                    btnValidate.disabled = false;
+                }
+            })
+            .catch(err => {
+                alert('Erreur réseau lors de la validation.');
+                btnValidate.innerHTML = ogHTML;
+                btnValidate.disabled = false;
+            });
+        });
+
+        // Entrée clavier = valider
+        cliInput.addEventListener("keypress", function(e) {
+            if(e.key === "Enter") {
+                e.preventDefault();
+                btnValidate.click();
+            }
+        });
+    }
+
+    // Focus sur CLI si tout est chargé et ouvert
+    if(cliInput) setTimeout(() => cliInput.focus(), 500);
+});
+</script>
+{% endblock %}

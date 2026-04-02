@@ -1,0 +1,511 @@
+{% extends "base.html" %}
+{% block title %}Profil Administrateur - InfraControl{% endblock %}
+
+{% block content %}
+<style>
+    /* --- 1. ESTHÉTIQUE GLOBALE --- */
+    :root {
+        --bg-deep: #050a10;
+        --glass-bg: rgba(20, 30, 46, 0.7);
+        --glass-border: rgba(56, 189, 248, 0.2);
+        --neon-cyan: #0ea5e9;
+        --neon-green: #10b981;
+        --neon-purple: #8b5cf6;
+        --text-main: #f8fafc;
+    }
+
+    /* Le body reste normal pour ne pas casser la navbar */
+    body {
+        background-color: var(--bg-deep);
+        color: var(--text-main);
+        overflow-x: hidden; 
+    }
+
+    /* Wrapper pour centrer le contenu sans toucher au body */
+    .profile-wrapper {
+        min-height: 85vh; /* Prend presque toute la hauteur */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        z-index: 10;
+        padding: 2rem 0;
+    }
+
+    /* --- 2. ANIMATION DESKTOP (CANVAS MATRIX) --- */
+    #matrix-canvas {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        opacity: 0.4; /* Discret */
+        pointer-events: none;
+    }
+
+    /* --- 3. ANIMATION MOBILE (PURE CSS NEBULA) --- */
+    /* On cache le canvas sur mobile pour la performance */
+    @media (max-width: 768px) {
+        #matrix-canvas { display: none; }
+        
+        .mobile-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0;
+            background: radial-gradient(circle at 50% 50%, #1e1b4b, #020617);
+            overflow: hidden;
+        }
+
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0.6;
+            animation: float-mobile 10s infinite ease-in-out;
+        }
+
+        .orb-1 { width: 200px; height: 200px; background: var(--neon-cyan); top: 10%; left: -10%; animation-delay: 0s; }
+        .orb-2 { width: 150px; height: 150px; background: var(--neon-purple); bottom: 20%; right: -10%; animation-delay: -5s; }
+        
+        @keyframes float-mobile {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(30px, 50px) scale(1.1); }
+        }
+    }
+
+    /* --- 4. ICÔNES FLOTTANTES (Emoji + Tech) --- */
+    .floating-icon {
+        position: fixed;
+        font-size: 1.5rem;
+        z-index: 1;
+        opacity: 0;
+        animation: floatUpFade 12s linear infinite;
+        pointer-events: none;
+        text-shadow: 0 0 10px rgba(255,255,255,0.3);
+    }
+
+    @keyframes floatUpFade {
+        0% { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+        20% { opacity: 0.6; }
+        80% { opacity: 0.6; }
+        100% { transform: translateY(-10vh) rotate(20deg); opacity: 0; }
+    }
+
+    /* --- 5. CARTE DESIGN "HOLOGRAPHIQUE" --- */
+    .holo-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(14, 165, 233, 0.05);
+        overflow: hidden;
+        position: relative;
+    }
+
+    /* Ligne de scan décorative */
+    .holo-card::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 3px;
+        background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+        animation: scanline 4s linear infinite;
+        opacity: 0.5;
+    }
+
+    @keyframes scanline {
+        0% { top: 0%; opacity: 0; }
+        10% { opacity: 1; }
+        90% { opacity: 1; }
+        100% { top: 100%; opacity: 0; }
+    }
+
+    /* Avatar Tech */
+    .tech-avatar {
+        width: 120px; height: 120px;
+        border-radius: 50%;
+        border: 3px solid var(--neon-cyan);
+        padding: 3px;
+        background: rgba(0,0,0,0.3);
+        box-shadow: 0 0 20px rgba(14, 165, 233, 0.4);
+    }
+    
+    .tech-avatar img {
+        width: 100%; height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    /* Boutons Swipe (Code précédent optimisé) */
+    .btn-swipe {
+        position: relative;
+        border: 1px solid;
+        background: transparent;
+        overflow: hidden;
+        transition: 0.3s;
+        font-weight: 600;
+        z-index: 5;
+    }
+    
+    .btn-swipe::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; width: 0; height: 100%;
+        background-color: currentColor;
+        z-index: -1;
+        transition: width 0.3s ease-out;
+        opacity: 0.2; /* Remplissage semi-transparent */
+    }
+    
+    .btn-swipe:hover::after { width: 100%; }
+    .btn-swipe:hover { color: #fff !important; text-shadow: 0 0 8px currentColor; border-color: transparent; }
+
+    .btn-cyan { color: var(--neon-cyan); border-color: var(--neon-cyan); }
+    .btn-red { color: #ef4444; border-color: #ef4444; }
+    .btn-purple { color: var(--neon-purple); border-color: var(--neon-purple); }
+
+    .badge-role {
+        background: rgba(14, 165, 233, 0.15);
+        color: var(--neon-cyan);
+        border: 1px solid var(--neon-cyan);
+        font-family: 'Courier New', monospace;
+    }
+</style>
+
+<canvas id="matrix-canvas" class="d-none d-md-block"></canvas>
+
+<div class="mobile-bg d-md-none">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+</div>
+
+<div id="floating-elements"></div>
+
+<div class="container profile-wrapper">
+    <div class="row justify-content-center w-100">
+        <div class="col-lg-8 col-md-10">
+            
+            <div class="card holo-card p-4 p-md-5">
+                <div class="row align-items-center">
+                    
+                    <div class="col-md-5 text-center border-end border-secondary border-opacity-25 mb-4 mb-md-0">
+                        <div class="tech-avatar mx-auto mb-3">
+                            {% if user.profil.photo %}
+                                <img src="{{ user.profil.photo.url }}" alt="Profile">
+                            {% else %}
+                                <img src="https://api.dicebear.com/7.x/bottts/svg?seed={{ user.username }}" alt="Robot Avatar">
+                            {% endif %}
+                        </div>
+                        <h3 class="fw-bold mb-1">{{ user.username }}</h3>
+                        <span class="badge badge-role mb-2">
+                            {% if user.is_superuser %}ROOT_ADMIN{% else %}NETWORK_OPS{% endif %}
+                        </span>
+                        <p class="text-muted small mt-2">
+                            <i class="fas fa-circle text-success" style="font-size: 8px;"></i> Session Active
+                        </p>
+                    </div>
+
+                    <div class="col-md-7 ps-md-4">
+                        <h5 class="text-uppercase text-muted small mb-4 tracking-wider">Données Utilisateur</h5>
+                        
+                        <div class="mb-3">
+                            <label class="small text-muted d-block">EMAIL CORPORATE</label>
+                            <span class="fs-5 font-monospace">{{ user.email }}</span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="small text-muted d-block">DERNIÈRE IP / LOGIN</label>
+                            <span class="fs-6 font-monospace text-info">
+                                {{ user.last_login|date:"Y-m-d H:i:s" }}
+                            </span>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <a href="{% url 'edit_profile' %}" class="btn btn-swipe btn-cyan flex-grow-1 text-center text-decoration-none">
+                                <i class="fas fa-user-edit me-2"></i> ÉDITER
+                            </a>
+                            <a href="{% url 'dashboard' %}" class="btn btn-swipe btn-purple flex-grow-1 text-center text-decoration-none">
+                                <i class="fas fa-network-wired me-2"></i> DASHBOARD
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-secondary border-opacity-25 my-4">
+
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-center bg-black bg-opacity-25 p-3 rounded border border-secondary border-opacity-10">
+                    <div class="d-flex align-items-center mb-3 mb-md-0">
+                        <div class="me-3">
+                            <i class="fas fa-shield-alt fa-2x" style="color: var(--neon-green);"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-0 fw-bold">Authentification 2FA</h6>
+                            <small class="text-muted">Statut du protocole de sécurité</small>
+                        </div>
+                    </div>
+                    
+                    {% if user.totpdevice_set.all %}
+                        <form method="post" action="{% url 'desactiver_2fa' %}" class="w-100 w-md-auto">
+                            {% csrf_token %}
+                            <button class="btn btn-swipe btn-red btn-sm w-100">DÉSACTIVER</button>
+                        </form>
+                    {% else %}
+                        <a href="{% url 'activer_2fa' %}" class="btn btn-swipe btn-cyan btn-sm w-100 w-md-auto text-decoration-none">
+                            ACTIVER LA SÉCURITÉ
+                        </a>
+                    {% endif %}
+                </div>
+
+                <div class="text-center mt-4">
+                    <a href="{% url 'deconnexion' %}" class="text-danger small text-decoration-none opacity-75 hover-opacity-100">
+                        <i class="fas fa-power-off me-1"></i> Terminer la session (Logout)
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+<!-- Bouton -->
+<button type="button" class="btn btn-danger-tech mt-3" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
+    <span class="btn-text">❌ Supprimer mon compte</span>
+    <span class="btn-glitch"></span>
+</button>
+
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content tech-modal-content">
+      
+      <div class="hazard-strip"></div>
+
+      <div class="modal-body text-center p-4">
+        <div class="danger-icon-wrapper mb-3">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+
+        <h4 class="modal-title fw-bold text-uppercase mb-2" id="confirmDeleteLabel">Termination Protocol</h4>
+        <p class="text-muted small mb-4">Confirmation requise pour l'arrêt des services.</p>
+
+        <div class="tech-info-box mb-4">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-snowflake me-3 text-info"></i>
+                <div class="text-start">
+                    <span class="d-block text-white text-uppercase" style="font-size: 0.75rem; letter-spacing: 1px;">Status Post-Action</span>
+                    <span class="text-info font-monospace">COMPTE GELÉ (7 JOURS)</span>
+                </div>
+            </div>
+            <div class="mt-2 text-start small text-white-50 border-top border-secondary border-opacity-25 pt-2">
+                Une restauration manuelle sera possible durant cette période de latence. Passé ce délai, purge définitive des données.
+            </div>
+        </div>
+
+        <div class="d-grid gap-2">
+            <form method="POST" action="{% url 'supprimer_compte' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-nuke w-100 py-2 mb-2">
+                    <i class="fas fa-biohazard me-2"></i> CONFIRMER LA SUPPRESSION
+                </button>
+            </form>
+            
+            <button type="button" class="btn btn-abort" data-bs-dismiss="modal">
+                ANNULER LA PROCÉDURE
+            </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+    /* --- 1. CONFIGURATION COULEURS --- */
+    :root {
+        --modal-bg: rgba(20, 5, 5, 0.95);
+        --neon-red: #ef4444;
+        --neon-dark-red: #7f1d1d;
+        --text-white: #f8fafc;
+    }
+
+    /* --- 2. STYLE DU MODAL (CONTENT) --- */
+    .tech-modal-content {
+        background: var(--modal-bg);
+        border: 1px solid var(--neon-red);
+        border-radius: 4px; /* Angles plus droits pour l'aspect tech */
+        box-shadow: 0 0 50px rgba(239, 68, 68, 0.2);
+        color: var(--text-white);
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Bande Hachurée (Hazard Strip) */
+    .hazard-strip {
+        height: 12px;
+        width: 100%;
+        background: repeating-linear-gradient(
+            -45deg,
+            #000,
+            #000 10px,
+            var(--neon-red) 10px,
+            var(--neon-red) 20px
+        );
+        box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+
+    /* Icône Danger */
+    .danger-icon-wrapper {
+        font-size: 3rem;
+        color: var(--neon-red);
+        animation: pulseDanger 2s infinite;
+        text-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+    }
+
+    @keyframes pulseDanger {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.1); opacity: 0.8; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* Boite d'info technique */
+    .tech-info-box {
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px dashed rgba(255, 255, 255, 0.2);
+        padding: 15px;
+        border-radius: 6px;
+    }
+
+    /* --- 3. BOUTONS --- */
+    
+    /* Bouton principal (Déclencheur) */
+    .btn-danger-tech {
+        background: transparent;
+        border: 1px solid var(--neon-red);
+        color: var(--neon-red);
+        text-transform: uppercase;
+        font-weight: bold;
+        padding: 10px 20px;
+        position: relative;
+        overflow: hidden;
+        transition: 0.3s;
+    }
+    .btn-danger-tech:hover {
+        background: var(--neon-red);
+        color: white;
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+    }
+
+    /* Bouton Nuke (Confirmer) */
+    .btn-nuke {
+        background: linear-gradient(90deg, #991b1b 0%, #ef4444 100%);
+        border: none;
+        color: white;
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
+        letter-spacing: 1px;
+        position: relative;
+    }
+    .btn-nuke:hover {
+        box-shadow: 0 0 25px rgba(239, 68, 68, 0.6);
+        color: white;
+        transform: scale(1.02);
+    }
+
+    /* Bouton Abort (Annuler) */
+    .btn-abort {
+        background: transparent;
+        border: 1px solid #475569;
+        color: #94a3b8;
+        font-size: 0.85rem;
+        letter-spacing: 1px;
+        padding: 8px;
+        transition: 0.3s;
+    }
+    .btn-abort:hover {
+        border-color: white;
+        color: white;
+        background: rgba(255,255,255,0.05);
+    }
+</style>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    
+    /* -------------------------------------------
+       1. ANIMATION DESKTOP : BINARY RAIN
+       ------------------------------------------- */
+    const canvas = document.getElementById('matrix-canvas');
+    if (canvas && window.innerWidth > 768) {
+        const ctx = canvas.getContext('2d');
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        const chars = "10"; // Binaire pur pour le look Admin
+        const fontSize = 14;
+        const columns = width / fontSize;
+        const drops = [];
+
+        for (let x = 0; x < columns; x++) drops[x] = 1;
+
+        function drawMatrix() {
+            ctx.fillStyle = "rgba(5, 10, 16, 0.05)"; // Trail effect (fade très lent)
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.fillStyle = "#0ea5e9"; // Cyan Text
+            ctx.font = fontSize + "px monospace";
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = chars.charAt(Math.floor(Math.random() * chars.length));
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                if (drops[i] * fontSize > height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+            requestAnimationFrame(drawMatrix);
+        }
+        drawMatrix();
+        
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+    }
+
+    /* -------------------------------------------
+       2. ÉLÉMENTS FLOTTANTS (EMOJIS + ICONS)
+       ------------------------------------------- */
+    const floatContainer = document.getElementById('floating-elements');
+    // Le mélange demandé : Emojis + FontAwesome classes
+    const items = ['👨🏾‍🔧', '👨🏾‍💻', '💫', 'fa-server', 'fa-code', 'fa-terminal', 'fa-wifi', '🔐', '⚡'];
+
+    function createFloater() {
+        const el = document.createElement('div');
+        const item = items[Math.floor(Math.random() * items.length)];
+        
+        el.className = 'floating-icon';
+        
+        // Si c'est une classe FontAwesome (commence par 'fa-')
+        if(item.startsWith('fa-')) {
+            el.innerHTML = `<i class="fas ${item}"></i>`;
+            el.style.color = 'rgba(14, 165, 233, 0.3)'; // Cyan transparent
+        } else {
+            // C'est un emoji
+            el.innerText = item;
+            el.style.filter = 'grayscale(30%)'; // Légèrement désaturé pour pas jurer
+        }
+
+        // Random positions
+        el.style.left = Math.random() * 95 + 'vw';
+        el.style.fontSize = (Math.random() * 20 + 15) + 'px';
+        el.style.animationDuration = (Math.random() * 10 + 15) + 's'; // Lent
+        
+        floatContainer.appendChild(el);
+
+        // Nettoyage après animation
+        setTimeout(() => { el.remove(); }, 25000);
+    }
+
+    // Créer un élément toutes les 1.5 secondes
+    setInterval(createFloater, 1500);
+    // En créer quelques uns au démarrage
+    for(let i=0; i<10; i++) createFloater();
+});
+</script>
+{% endblock %}

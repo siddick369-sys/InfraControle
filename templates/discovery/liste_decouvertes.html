@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>🔍 Découverte du réseau</h2>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <form method="post" class="m-0 d-flex gap-2">
+        {% csrf_token %}
+        <input type="text" name="custom_subnet" class="form-control" placeholder="Réseau (ex: 192.168.1.0/24)" style="width: 250px;">
+        <button name="scan" class="btn btn-primary d-flex align-items-center gap-2">
+            <i class="fas fa-sync-alt"></i> Scanner le réseau
+        </button>
+    </form>
+
+    <form method="get" class="d-flex gap-2">
+        <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Rechercher (IP, MAC, Nom, Type)..." style="width: 300px;">
+        <button type="submit" class="btn btn-outline-secondary">
+            <i class="fas fa-search"></i>
+        </button>
+        {% if query %}
+            <a href="{% url 'liste_decouvertes' %}" class="btn btn-outline-danger" title="Effacer la recherche"><i class="fas fa-times"></i></a>
+        {% endif %}
+    </form>
+</div>
+
+<table class="table table-bordered table-hover">
+    <thead>
+        <tr>
+            <th>IP</th>
+            <th>Hostname</th>
+            <th>Type</th>
+            <th>Statut</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for d in page_obj %}
+        <tr>
+            <td>{{ d.adresse_ip }}</td>
+            <td>{{ d.hostname|default:"—" }}</td>
+            <td>{{ d.type_detecte }}</td>
+            <td>
+                {% if d.ajoute %}
+                    <span class="badge bg-success">Ajouté</span>
+                {% else %}
+                    <span class="badge bg-warning">Non supervisé</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if not d.ajoute %}
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="ajouter" value="1">
+                    <input type="hidden" name="ip" value="{{ d.adresse_ip }}">
+                    <input type="hidden" name="hostname" value="{{ d.hostname }}">
+                    <input type="hidden" name="type" value="{{ d.type_detecte }}">
+                    <button class="btn btn-sm btn-success">
+                        ➕ Ajouter
+                    </button>
+                </form>
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+        </tr>
+    {% empty %}
+        <tr>
+            <td colspan="5" class="text-center text-muted">
+                Aucun équipement découvert
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<nav aria-label="Pagination découvertes" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1{% if query %}&q={{ query }}{% endif %}" aria-label="First">&laquo;</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">Précédent</a>
+            </li>
+        {% else %}
+            <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+            <li class="page-item disabled"><span class="page-link">Précédent</span></li>
+        {% endif %}
+
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+                <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <li class="page-item"><a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a></li>
+            {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}">Suivant</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if query %}&q={{ query }}{% endif %}" aria-label="Last">&raquo;</a>
+            </li>
+        {% else %}
+            <li class="page-item disabled"><span class="page-link">Suivant</span></li>
+            <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% endblock %}

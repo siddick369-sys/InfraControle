@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Planifier une commande - {{ equipement.nom }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">📅 Planifier une commande sur {{ equipement.nom }}</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Entrez la commande à exécuter sur l'équipement. Les commandes sensibles sont automatiquement bloquées.
+                    </p>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {{ form.non_field_errors }}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.commande_texte.id_for_label }}" class="form-label fw-bold">Commande</label>
+                            {{ form.commande_texte }}
+                            {% if form.commande_texte.errors %}
+                                <div class="text-danger small mt-1">{{ form.commande_texte.errors }}</div>
+                            {% endif %}
+                            <small class="text-muted d-block mt-1">{{ form.commande_texte.help_text }}</small>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.date_execution.id_for_label }}" class="form-label fw-bold">Date de Première Exécution</label>
+                                {{ form.date_execution }}
+                                {% if form.date_execution.errors %}
+                                    <div class="text-danger small mt-1">{{ form.date_execution.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.frequence.id_for_label }}" class="form-label fw-bold">Fréquence</label>
+                                {{ form.frequence }}
+                                {% if form.frequence.errors %}
+                                    <div class="text-danger small mt-1">{{ form.frequence.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'detail_equipement' equipement.id %}" class="btn btn-outline-secondary">Annuler</a>
+                            <button type="submit" class="btn btn-success">
+                                ✅ Planifier
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

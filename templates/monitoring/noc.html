@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h3 class="mb-3">🖥️ Network Operations Center</h3>
+
+<div class="row" id="noc-grid"></div>
+
+<script>
+function statusColor(e) {
+    if (e.statut === "maintenance") return "secondary";
+    if (e.health !== null && e.health < 50) return "danger";
+    if (e.statut === "alerte") return "warning";
+    return "success";
+}
+
+function loadNOC() {
+    fetch("{% url 'noc_status_api' %}")
+    .then(r => r.json())
+    .then(data => {
+        const grid = document.getElementById("noc-grid");
+        grid.innerHTML = "";
+
+        data.equipements.forEach(e => {
+            grid.innerHTML += `
+            <div class="col-md-3 mb-3">
+                <div class="card border-${statusColor(e)} shadow-sm">
+                    <div class="card-body">
+                        <h6>${e.nom}</h6>
+
+                        <span class="badge bg-${statusColor(e)}">
+                            ${e.statut}
+                        </span>
+
+                        <hr>
+                        <small>❤️ Health: ${e.health ?? "-"}</small><br>
+                        <small>CPU: ${e.cpu ?? "-"}%</small><br>
+                        <small>RAM: ${e.ram ?? "-"}%</small><br>
+                        <small>Disk: ${e.disk ?? "-"}%</small>
+
+                        <hr>
+                        <a href="/equipements/${e.id}/" class="btn btn-sm btn-outline-primary">Détails</a>
+                        <a href="/equipements/${e.id}/terminal/" class="btn btn-sm btn-outline-dark">CMD</a>
+                    </div>
+                </div>
+            </div>`;
+        });
+    });
+}
+
+loadNOC();
+setInterval(loadNOC, 15000); // refresh toutes les 15s
+</script>
+
+<div class="d-flex gap-2">
+    <a href="{% url 'generer_rapport_executif' %}?mode=exec"
+       class="btn btn-primary">
+       📊 Générer rapport exécutif (PDF)
+    </a>
+
+    <a href="{% url 'generer_rapport_executif' %}?mode=secours"
+       class="btn btn-outline-secondary">
+       🧯 Générer rapport (mode secours)
+    </a>
+</div>
+
+{% endblock %}

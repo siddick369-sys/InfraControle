@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Supervision Réseau - Temps réel{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <h2 class="mb-4 text-center">🌐 Supervision Réseau (Temps réel)</h2>
+
+  <!-- Statistiques globales -->
+  <div id="globalStats" class="row text-center mb-4">
+    <div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body"><h4>{{ stats.total }}</h4><p>Total</p></div></div></div>
+    <div class="col-md-3"><div class="card bg-success text-white"><div class="card-body"><h4>{{ stats.connectes }}</h4><p>Connectés</p></div></div></div>
+    <div class="col-md-3"><div class="card bg-danger text-white"><div class="card-body"><h4>{{ stats.deconnectes }}</h4><p>Déconnectés</p></div></div></div>
+    <div class="col-md-3"><div class="card bg-warning text-dark"><div class="card-body"><h4>{{ stats.erreurs }}</h4><p>Erreurs</p></div></div></div>
+  </div>
+
+  <!-- Tableau -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-dark text-white"><h5>🧩 Équipements réseau</h5></div>
+    <div class="card-body table-responsive">
+      <table class="table table-hover" id="equipTable">
+        <thead><tr><th>Nom</th><th>IP</th><th>CPU</th><th>RAM</th><th>Disque</th><th>Bande passante</th><th>Latence</th><th>Statut</th></tr></thead>
+        <tbody>
+          {% for e in equipements %}
+          <tr>
+            <td>{{ e.nom }}</td><td>{{ e.adresse_ip }}</td>
+            <td><span id="cpu-{{ e.id }}">{{ e.cpu_usage|default:"—" }}%</span></td>
+            <td><span id="ram-{{ e.id }}">{{ e.ram_usage|default:"—" }}%</span></td>
+            <td><span id="disk-{{ e.id }}">{{ e.disk_usage|default:"—" }}%</span></td>
+            <td><span id="net-{{ e.id }}">{{ e.network_bandwidth|default:"—" }} MB/s</span></td>
+            <td><span id="lat-{{ e.id }}">{{ e.latence|default:"—" }} ms</span></td>
+            <td><span id="status-{{ e.id }}" class="badge bg-secondary">⏳</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Graphiques -->
+  <div class="card shadow-sm">
+    <div class="card-header bg-info text-white"><h5>📈 Performances en temps réel</h5></div>
+    <div class="card-body">
+      <canvas id="chartCPU"></canvas>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let chartCPU = new Chart(document.getElementById("chartCPU"), {
+  type: 'line',
+  data: { labels: [], datasets: [{ label: "CPU (%)", borderColor: "red", data: [] }] },
+  options: { responsive: true }
+});
+
+function updateStats() {
+  fetch("{% url 'get_realtime_stats' %}")
+    .then(res => res.json())
+    .then(data => {
+      data.equipements.forEach(e => {
+        document.getElementById(`cpu-${e.id}`).innerText = e.cpu.toFixed(1) + "%";
+        document.getElementById(`ram-${e.id}`).innerText = e.ram.toFixed(1) + "%";
+        document.getElementById(`disk-${e.id}`).innerText = e.disk.toFixed(1) + "%";
+        document.getElementById(`net-${e.id}`).innerText = e.net.toFixed(1) + " MB/s";
+        document.getElementById(`lat-${e.id}`).innerText = e.latence.toFixed(1) + " ms";
+        const badge = document.getElementById(`status-${e.id}`);
+        badge.innerText = e.statut === "connecté" ? "🟢" : "🔴";
+        badge.className = e.statut === "connecté" ? "badge bg-success" : "badge bg-danger";
+      });
+
+      const now = new Date().toLocaleTimeString();
+      chartCPU.data.labels.push(now);
+      chartCPU.data.datasets[0].data.push(data.equipements[0].cpu);
+      if(chartCPU.data.labels.length > 20){ chartCPU.data.labels.shift(); chartCPU.data.datasets[0].data.shift(); }
+      chartCPU.update();
+    });
+}
+setInterval(updateStats, 10000);
+</script>
+{% endblock %}

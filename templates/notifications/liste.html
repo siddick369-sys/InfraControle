@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-9 mx-auto">
+            <h1>Vos Notifications</h1>
+            <div class="list-group mt-4">
+                {% for notif in notifications %}
+                <div class="list-group-item list-group-item-action {% if not notif.lu %}border-primary{% endif %}">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">
+                            {% if not notif.lu %}<span class="badge bg-primary me-2">Nouveau</span>{% endif %}
+                            {{ notif.titre }}
+                        </h5>
+                        <small class="text-muted">{{ notif.cree_le|timesince }} ago</small>
+                    </div>
+                    <p class="mb-1">{{ notif.message }}</p>
+                    <small class="text-muted">Type: {{ notif.get_type_notif_display }}</small>
+                </div>
+                {% empty %}
+                <div class="text-center py-5">
+                    <p class="text-muted">Vous n'avez aucune notification.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

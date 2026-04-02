@@ -1,0 +1,16 @@
+{% extends 'emails/base_email.html' %}
+
+{% block content %}
+<h2 style="color: #dc3545;">🚨 Nouvel Incident Détecté</h2>
+<p>Un incident a été détecté sur l'infrastructure :</p>
+<div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 5px solid #dc3545;">
+    <p><strong>Équipement :</strong> {{ incident.equipement.nom }} ({{ incident.equipement.adresse_ip }})</p>
+    <p><strong>Incident :</strong> {{ incident.titre }}</p>
+    <p><strong>Priorité :</strong> {{ incident.get_niveau_display }}</p>
+    <p><strong>Description :</strong> {{ incident.description }}</p>
+</div>
+<p style="margin-top: 20px;">
+    L'IA Infracontrol analyse actuellement la cause racine et proposera une remédiation sous peu.
+</p>
+<a href="{{ dashboard_url }}" style="display: inline-block; padding: 10px 20px; background-color: #0d6efd; color: white; text-decoration: none; border-radius: 5px;">Voir le Dashboard</a>
+{% endblock %}

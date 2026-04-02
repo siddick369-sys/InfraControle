@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="mb-4">📶 Dashboard Wi-Fi</h2>
+
+<div class="row text-center mb-4">
+    <div class="col"><h5>AP actifs</h5><span id="ap_total">–</span></div>
+    <div class="col"><h5>Clients</h5><span id="clients_total">–</span></div>
+    <div class="col"><h5>Radios saturées</h5><span id="radios_saturees">–</span></div>
+    <div class="col"><h5>Incidents</h5><span id="incidents">–</span></div>
+    <h5>🧠 Recommandations IA Wi-Fi</h5>
+
+{% for reco in recommandations %}
+<div class="alert alert-warning">
+    <strong>{{ reco.message }}</strong><br>
+    <small>{{ reco.justification }}</small><br>
+    Gravité : {{ reco.gravite }}/5
+</div>
+{% empty %}
+<p class="text-muted">Aucune recommandation</p>
+{% endfor %}
+</div>
+<div class="mb-4">
+    <button id="btn-ai-analyze" class="btn btn-outline-primary btn-lg" onclick="lancerAnalyseIA()">
+        <span id="btn-icon">✨</span> 
+        <span id="btn-text">Lancer l'Analyse Prédictive IA</span>
+        <span id="btn-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+    </button>
+</div>
+
+<div id="ai-result-card" class="card border-info mb-3 d-none shadow-lg">
+    <div class="card-header bg-transparent border-info d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-info"><i class="fas fa-robot"></i> Rapport InfraControl AI</h5>
+        <span id="ai-badge-risque" class="badge bg-secondary">Calcul en cours...</span>
+    </div>
+    <div class="card-body">
+        <h6 class="card-title text-muted">Analyse contextuelle :</h6>
+        <p class="card-text" id="ai-content-analyse" style="white-space: pre-line;">
+            </p>
+        
+        <hr>
+        
+        <div class="alert alert-warning d-flex align-items-center" role="alert">
+            <i class="fas fa-tools me-2"></i>
+            <div>
+                <strong>Action Recommandée :</strong> <span id="ai-content-action">...</span>
+            </div>
+        </div>
+    </div>
+    <div class="card-footer text-muted font-italic text-end">
+        <small>Généré par Gemini Pro via InfraControl</small>
+    </div>
+</div>
+
+<script>
+    function lancerAnalyseIA() {
+        const btn = document.getElementById('btn-ai-analyze');
+        const btnText = document.getElementById('btn-text');
+        const btnIcon = document.getElementById('btn-icon');
+        const spinner = document.getElementById('btn-spinner');
+        const resultCard = document.getElementById('ai-result-card');
+        
+        // 1. État de chargement (UI)
+        btn.disabled = true;
+        btnText.innerText = "Analyse en cours...";
+        btnIcon.classList.add('d-none'); // Cache l'étoile
+        spinner.classList.remove('d-none'); // Montre le spinner
+        resultCard.classList.add('d-none'); // Cache l'ancien résultat s'il y en a un
+
+        // 2. Appel AJAX vers Django
+        // Remplacez '1' par l'ID dynamique de votre équipement, ex: {{ equipement.id }}
+        const equipementId = "{{ equipement.id }}"; 
+        const url = `/monitoring/api/ai/analyze/${equipementId}/`;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    afficherResultat(data.data);
+                } else {
+                    alert("Erreur IA: " + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert("Erreur de communication avec le module IA.");
+            })
+            .finally(() => {
+                // 3. Rétablissement du bouton
+                btn.disabled = false;
+                btnText.innerText = "Relancer l'Analyse";
+                btnIcon.classList.remove('d-none');
+                spinner.classList.add('d-none');
+            });
+    }
+
+    function afficherResultat(dataAI) {
+        const resultCard = document.getElementById('ai-result-card');
+        const badge = document.getElementById('ai-badge-risque');
+        const txtAnalyse = document.getElementById('ai-content-analyse');
+        const txtAction = document.getElementById('ai-content-action');
+
+        // Remplissage des données
+        txtAnalyse.innerText = dataAI.analyse;
+        txtAction.innerText = dataAI.action;
+
+        // Gestion de la couleur du badge selon le risque
+        badge.className = "badge"; // Reset classes
+        const risque = (dataAI.risque || "").toLowerCase();
+        
+        if (risque.includes("critique") || risque.includes("élevé")) {
+            badge.classList.add("bg-danger");
+            badge.innerText = "RISQUE CRITIQUE";
+        } else if (risque.includes("moyen") || risque.includes("modéré")) {
+            badge.classList.add("bg-warning", "text-dark");
+            badge.innerText = "RISQUE MODÉRÉ";
+        } else {
+            badge.classList.add("bg-success");
+            badge.innerText = "SYSTÈME SAIN";
+        }
+
+        // Affichage de la carte avec une petite animation
+        resultCard.classList.remove('d-none');
+        resultCard.scrollIntoView({ behavior: 'smooth' });
+    }
+</script>
+
+
+<canvas id="clientsChart" height="100"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+const ctx = document.getElementById('clientsChart');
+
+const chart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: ['2.4 GHz', '5 GHz', '6 GHz'],
+        datasets: [{
+            data: [0, 0, 0],
+            backgroundColor: ['#ffc107', '#0d6efd', '#198754']
+        }]
+    }
+});
+
+async function refreshDashboard() {
+    const res = await fetch("{% url 'wifi_dashboard_api' %}");
+    const data = await res.json();
+
+    document.getElementById("ap_total").innerText = data.ap_total;
+    document.getElementById("clients_total").innerText = data.clients_total;
+    document.getElementById("radios_saturees").innerText = data.radios_saturees;
+    document.getElementById("incidents").innerText = data.incidents;
+
+    chart.data.datasets[0].data = [
+        data.clients_par_bande["2.4"],
+        data.clients_par_bande["5"],
+        data.clients_par_bande["6"]
+    ];
+    chart.update();
+}
+
+refreshDashboard();
+setInterval(refreshDashboard, 5000);
+</script>
+
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Tableau de bord Wi-Fi</h1>
+
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white text-center p-3">
+                <h3>{{ total_aps }}</h3>
+                <p>Points d'accès</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white text-center p-3">
+                <h3>{{ total_clients }}</h3>
+                <p>Clients connectés</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark text-center p-3">
+                <h3>{{ incidents_ouverts }}</h3>
+                <p>Incidents ouverts</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white text-center p-3">
+                <h3>{{ stats_recentes.avg_debit|floatformat:1 }}</h3>
+                <p>Débit moy. (Mbps)</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between">
+                    <h5>Points d'accès (APs)</h5>
+                    <a href="{% url 'wifi:heatmap' %}" class="btn btn-sm btn-outline-primary">Voir Heatmap</a>
+                </div>
+                <div class="card-body">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>IP</th>
+                                <th>État</th>
+                                <th>Bandes</th>
+                                <th>Clients</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ap in aps %}
+                            <tr>
+                                <td>{{ ap.equipement.nom }}</td>
+                                <td>{{ ap.equipement.adresse_ip }}</td>
+                                <td>
+                                    {% if ap.etat == 'ok' %}
+                                    <span class="badge bg-success">En ligne</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">{{ ap.get_etat_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% for radio in ap.radios.all %}
+                                    <span class="badge bg-light text-dark">{{ radio.bande }}G</span>
+                                    {% endfor %}
+                                </td>
+                                <td>{{ ap.radios.first.nb_clients_count|default:0 }}</td> <!-- Note: ideal count needed -->
+                                <td>
+                                    <a href="{% url 'wifi:ap_detail' ap.id %}" class="btn btn-sm btn-primary">Détails</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Recommandations IA</h5>
+                </div>
+                <div class="card-body">
+                    {% for reco in recommandations %}
+                    <div class="alert alert-info py-2">
+                        <strong>{{ reco.get_type_recommandation_display }}</strong><br>
+                        <small>{{ reco.message }}</small>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted">Aucune recommandation.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

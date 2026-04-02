@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+{% block title %}Déploiement Nœud - InfraControl{% endblock %}
+
+{% block content %}
+<style>
+    /* --- 1. THEME "BLUEPRINT" --- */
+    :root {
+        --bg-tech: #0f172a;
+        --neon-blue: #3b82f6;
+        --neon-cyan: #06b6d4;
+        --text-main: #f8fafc;
+        --card-glass: rgba(15, 23, 42, 0.9);
+        --input-bg: rgba(2, 6, 23, 0.6);
+    }
+
+    /* Force texte blanc */
+    .deploy-wrapper {
+        color: var(--text-main);
+        position: relative;
+        z-index: 10;
+        padding-bottom: 3rem;
+    }
+
+    h3, label { color: var(--text-main) !important; }
+
+    /* --- 2. BACKGROUND DESKTOP (BLUEPRINT GRID) --- */
+    #blueprint-canvas {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        background: #020617;
+    }
+
+    /* --- 3. BACKGROUND MOBILE (HEX MESH) --- */
+    .mobile-mesh-bg {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        background: #020617;
+        background-image: radial-gradient(#1e293b 15%, transparent 16%), radial-gradient(#1e293b 15%, transparent 16%);
+        background-size: 20px 20px;
+        background-position: 0 0, 10px 10px;
+        animation: meshMove 20s linear infinite;
+        opacity: 0.3;
+    }
+
+    @keyframes meshMove {
+        0% { background-position: 0 0, 10px 10px; }
+        100% { background-position: 20px 20px, 30px 30px; }
+    }
+
+    /* --- 4. CARTE & FORMULAIRE --- */
+    .deploy-card {
+        background: var(--card-glass);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        border-radius: 8px;
+        box-shadow: 0 0 40px rgba(59, 130, 246, 0.1);
+        overflow: hidden;
+        position: relative;
+    }
+
+    /* Bande supérieure technique */
+    .tech-header-strip {
+        height: 4px;
+        background: linear-gradient(90deg, var(--neon-cyan), var(--neon-blue));
+        box-shadow: 0 0 10px var(--neon-blue);
+    }
+
+    /* Inputs Stylisés */
+    .tech-input, .form-select {
+        background-color: var(--input-bg) !important;
+        border: 1px solid #1e293b;
+        color: var(--neon-cyan) !important;
+        font-family: 'Consolas', monospace;
+        font-size: 0.9rem;
+        transition: 0.3s;
+    }
+
+    .tech-input:focus, .form-select:focus {
+        border-color: var(--neon-blue);
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+        background-color: rgba(2, 6, 23, 0.9) !important;
+    }
+    
+    .tech-input::placeholder { opacity: 0.4; font-family: sans-serif; }
+
+    /* Labels */
+    .form-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #94a3b8 !important;
+        margin-bottom: 4px;
+    }
+
+    /* Switch Actif/Inactif Custom */
+    .form-check.form-switch .form-check-input {
+        background-color: #334155;
+        border-color: #475569;
+        height: 24px; width: 48px;
+    }
+    .form-check.form-switch .form-check-input:checked {
+        background-color: var(--neon-green); /* Vert quand actif */
+        border-color: var(--neon-green);
+    }
+
+    /* Bouton Save */
+    .btn-deploy {
+        background: linear-gradient(90deg, #2563eb 0%, #06b6d4 100%);
+        border: none;
+        color: white;
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 1px;
+        transition: 0.3s;
+    }
+    .btn-deploy:hover {
+        box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+        transform: translateY(-2px);
+        color: white;
+    }
+
+    /* Section Divider */
+    .section-title {
+        font-size: 0.8rem;
+        color: var(--neon-blue) !important;
+        border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        padding-bottom: 5px;
+        margin-bottom: 15px;
+        margin-top: 10px;
+    }
+</style>
+
+<canvas id="blueprint-canvas" class="d-none d-lg-block"></canvas>
+
+<div class="mobile-mesh-bg d-lg-none"></div>
+
+<div class="container deploy-wrapper py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            
+            <div class="card deploy-card">
+                <div class="tech-header-strip"></div>
+                
+                <div class="card-body p-4 p-md-5">
+                    
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="bg-primary bg-opacity-25 p-3 rounded-circle me-3 border border-primary">
+                            <i class="fas fa-server fa-2x text-primary"></i>
+                        </div>
+                        <div>
+                            <h3 class="fw-bold m-0">NOUVEAU NŒUD</h3>
+                            <p class="text-muted small m-0">Configuration et déploiement d'infrastructure</p>
+                        </div>
+                    </div>
+
+                    <form method="POST">
+                        {% csrf_token %}
+
+                        <div class="row g-4">
+                            
+                            <div class="col-md-6">
+                                <h6 class="section-title"><i class="fas fa-fingerprint me-2"></i>IDENTIFICATION</h6>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Nom d'hôte (Hostname)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-transparent border-secondary text-muted"><i class="fas fa-tag"></i></span>
+                                        {{ form.nom }}
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Type d'équipement</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-transparent border-secondary text-muted"><i class="fas fa-sitemap"></i></span>
+                                        {{ form.type_equipement }}
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Adresse IP (v4)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-transparent border-secondary text-muted"><i class="fas fa-ethernet"></i></span>
+                                        {{ form.adresse_ip }}
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Emplacement Physique</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-transparent border-secondary text-muted"><i class="fas fa-map-marker-alt"></i></span>
+                                        {{ form.localisation }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6" id="ssh-section">
+                                <h6 class="section-title"><i class="fas fa-key me-2"></i>ACCÈS & SÉCURITÉ</h6>
+
+                                <div class="row">
+                                    <div class="col-6 mb-3">
+                                        <label class="form-label">Port SSH</label>
+                                        {{ form.port_ssh }}
+                                    </div>
+                                    <div class="col-6 mb-3">
+                                        <label class="form-label">Utilisateur</label>
+                                        {{ form.utilisateur_ssh }}
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Mot de passe SSH</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-transparent border-secondary text-muted"><i class="fas fa-lock"></i></span>
+                                        {{ form.mot_de_passe_ssh }}
+                                    </div>
+                                    <small class="text-muted" style="font-size: 0.7rem;">Stocké de manière chiffrée (AES-256).</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Statut Initial</label>
+                                    <div class="form-check form-switch d-flex align-items-center bg-black bg-opacity-20 p-2 rounded border border-secondary border-opacity-25">
+                                        {{ form.actif }}
+                                        <label class="form-check-label ms-3 text-white" for="{{ form.actif.id_for_label }}">
+                                            Équipement Actif (Monitoring ON)
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Statut section isolated for WiFi hidden cases -->
+                            <div class="col-md-6 d-none" id="status-section-wifi">
+                                <h6 class="section-title"><i class="fas fa-check-circle me-2"></i>STATUT ACTIVATION</h6>
+                                <div class="mb-3">
+                                    <label class="form-label">Statut Initial</label>
+                                    <div class="form-check form-switch d-flex align-items-center bg-black bg-opacity-20 p-2 rounded border border-secondary border-opacity-25">
+                                        {% with form.actif as field %}
+                                            <input type="checkbox" name="{{ field.name }}" id="{{ field.id_for_label }}_wifi" class="form-check-input ms-0 me-2" {% if field.value %}checked{% endif %}>
+                                            <label class="form-check-label ms-3 text-white" for="{{ field.id_for_label }}_wifi">
+                                                Équipement Actif (Monitoring ON)
+                                            </label>
+                                        {% endwith %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <h6 class="section-title"><i class="fas fa-file-alt me-2"></i>MÉTADONNÉES</h6>
+                                <div class="mb-3">
+                                    {{ form.description }}
+                                </div>
+                            </div>
+
+                        </div> <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top border-secondary border-opacity-25">
+                            <a href="{% url 'liste_equipements' %}" class="btn btn-outline-secondary text-uppercase" style="font-size: 0.85rem;">
+                                <i class="fas fa-times me-2"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-deploy px-5 py-2">
+                                <i class="fas fa-save me-2"></i> INITIALISER LE NŒUD
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const canvas = document.getElementById('blueprint-canvas');
+    if (canvas && window.innerWidth >= 992) {
+        const ctx = canvas.getContext('2d');
+        let w, h;
+        
+        function resize() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Paramètres de la grille
+        const gridSize = 50;
+        let offset = 0;
+
+        function drawBlueprint() {
+            ctx.clearRect(0, 0, w, h);
+            
+            // Couleur des lignes
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.15)';
+            ctx.lineWidth = 1;
+
+            // Défilement lent
+            offset = (offset + 0.2) % gridSize;
+
+            // Lignes Verticales
+            for (let x = offset; x < w; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, h);
+                ctx.stroke();
+            }
+
+            // Lignes Horizontales
+            for (let y = offset; y < h; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+                ctx.stroke();
+            }
+
+            // Croix aux intersections (Effet technique)
+            ctx.fillStyle = 'rgba(6, 182, 212, 0.3)';
+            for (let x = offset; x < w; x += gridSize) {
+                for (let y = offset; y < h; y += gridSize) {
+                    if (Math.random() > 0.95) { // Quelques points aléatoires
+                         ctx.fillRect(x-2, y-2, 4, 4);
+                    }
+                }
+            }
+
+        // Logic pour WiFi (masquer SSH)
+        const typeSelect = document.querySelector('select[name="type_equipement"]');
+        const sshSection = document.getElementById('ssh-section');
+        const wifiStatusSection = document.getElementById('status-section-wifi');
+        const mainActif = document.querySelector('input[name="actif"]');
+        const wifiActif = document.getElementById('id_actif_wifi');
+
+        function toggleSSH() {
+            if (typeSelect.value === 'wifi') {
+                sshSection.style.display = 'none';
+                wifiStatusSection.classList.remove('d-none');
+                // Sync status
+                if (wifiActif && mainActif) wifiActif.checked = mainActif.checked;
+            } else {
+                sshSection.style.display = 'block';
+                wifiStatusSection.classList.add('d-none');
+            }
+        }
+
+        if (typeSelect) {
+            typeSelect.addEventListener('change', toggleSSH);
+            toggleSSH(); // Init
+        }
+
+        requestAnimationFrame(drawBlueprint);
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,51 @@
+# =============================================
+# ALERTMANAGER - Configuration Infracontrol
+# =============================================
+
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: 'smtp-relay.brevo.com:2525'
+  smtp_from: 'alertes@infracontrol.local'
+  smtp_auth_username: '9f4b2a001@smtp-brevo.com'
+  smtp_auth_password: 'K7VXJCdE8cx3rDmY'
+  smtp_require_tls: true
+
+# Routes de notification
+route:
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'email-admin'
+
+  routes:
+    # Alertes critiques → notification immédiate
+    - match:
+        severity: critical
+      receiver: 'email-admin'
+      group_wait: 10s
+      repeat_interval: 1h
+
+    # Alertes warning → notification regroupée
+    - match:
+        severity: warning
+      receiver: 'email-admin'
+      group_wait: 1m
+      repeat_interval: 4h
+
+# Récepteurs
+receivers:
+  - name: 'email-admin'
+    email_configs:
+      - to: 'siddick369@gmail.com'
+        send_resolved: true
+        headers:
+          Subject: '🚨 Infracontrol Alert: {{ .GroupLabels.alertname }}'
+
+# Inhibition (éviter les alertes redondantes)
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance']

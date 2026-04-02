@@ -1,0 +1,41 @@
+<h3>🕒 Changements en attente de validation</h3>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Équipement</th>
+            <th>Commande</th>
+            <th>Date prévue</th>
+            <th>Fréquence</th>
+            <th>Créé par</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for c in changements %}
+        <tr>
+            <td>{{ c.equipement.nom }}</td>
+            <td>{{ c.commande.nom }}</td>
+            <td>{{ c.date_execution|date:"d/m/Y H:i" }}</td>
+            <td>{{ c.frequence }}</td>
+            <td>{{ c.cree_par }}</td>
+            <td>
+                <a href="{% url 'valider_changement' c.id %}"
+                   class="btn btn-sm btn-success">
+                    ✔ Valider
+                </a>
+                <a href="{% url 'refuser_changement' c.id %}"
+                   class="btn btn-sm btn-danger">
+                    ✖ Refuser
+                </a>
+            </td>
+        </tr>
+    {% empty %}
+        <tr>
+            <td colspan="6" class="text-muted">
+                Aucun changement en attente
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>

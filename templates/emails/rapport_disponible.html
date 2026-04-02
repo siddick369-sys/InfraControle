@@ -1,0 +1,15 @@
+{% extends 'emails/base_email.html' %}
+
+{% block content %}
+<h2 style="color: #0d6efd;">📊 Rapport Exécutif Disponible</h2>
+<p>Le rapport de synthèse hebdomadaire de l'infrastructure est prêt :</p>
+<div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 5px solid #0d6efd;">
+    <p><strong>Période :</strong> {{ rapport.date_debut|date:"d/m/Y" }} au {{ rapport.date_fin|date:"d/m/Y" }}</p>
+    <p><strong>Incidents traités :</strong> {{ rapport.nb_incidents }}</p>
+    <p><strong>Disponibilité globale :</strong> {{ rapport.disponibilite_stats }}%</p>
+</div>
+<p style="margin-top: 20px;">
+    Ce rapport inclut une analyse IA des tendances et des recommandations stratégiques.
+</p>
+<a href="{{ rapport_url }}" style="display: inline-block; padding: 10px 20px; background-color: #0d6efd; color: white; text-decoration: none; border-radius: 5px;">Consulter le Rapport</a>
+{% endblock %}

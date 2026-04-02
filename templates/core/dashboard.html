@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Global - InfraControl{% endblock %}
+
+{% block content %}
+<style>
+    .dashboard-container {
+        padding: 2rem;
+        color: var(--text-main);
+    }
+    .glass-card {
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        padding: 1.5rem;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        height: 100%;
+        overflow: hidden;
+        position: relative;
+    }
+    .glass-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--border-tech);
+    }
+    .glass-card::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%);
+        pointer-events: none;
+    }
+    .metric-value {
+        font-size: 3rem;
+        font-weight: 700;
+        font-family: 'Courier New', Courier, monospace;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+        background: -webkit-linear-gradient(45deg, #0ea5e9, #38bdf8);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .metric-title {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+        margin-bottom: 0;
+    }
+    .metric-icon {
+        position: absolute;
+        top: 1.5rem;
+        right: 1.5rem;
+        font-size: 2.5rem;
+        opacity: 0.2;
+    }
+    .text-danger-custom { color: #f43f5e; }
+    .text-warning-custom { color: #eab308; }
+    .text-success-custom { color: #10b981; }
+
+    .glow-cyan { text-shadow: 0 0 10px rgba(14, 165, 233, 0.5); }
+    .glow-danger { text-shadow: 0 0 10px rgba(244, 63, 94, 0.5); }
+
+    .activity-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .activity-item {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 1rem 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+    .activity-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 10px;
+    }
+    .badge-soft {
+        background: rgba(14, 165, 233, 0.1);
+        color: var(--accent-cyan);
+        border: 1px solid rgba(14, 165, 233, 0.2);
+        padding: 0.35em 0.65em;
+        border-radius: 4px;
+        font-weight: normal;
+        font-size: 0.75rem;
+    }
+    
+    .section-title {
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-main);
+        font-weight: 300;
+        letter-spacing: 1px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.2); 
+    }
+    ::-webkit-scrollbar-thumb {
+        background: rgba(14, 165, 233, 0.5); 
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(14, 165, 233, 0.8); 
+    }
+</style>
+
+<div class="dashboard-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1 glow-cyan" style="font-weight: 300;">INFRA<span style="font-weight: 700; color: var(--accent-cyan);">CENTER</span> Dashboard</h2>
+            <p class="text-muted m-0">Vue d'ensemble et status du système, {{ user.username }}.</p>
+        </div>
+        <div class="text-end">
+            <div class="badge-soft"><i class="fas fa-clock me-1"></i> {% now "d M Y H:i" %}</div>
+        </div>
+    </div>
+
+    <!-- KPIs Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="glass-card">
+                <i class="fas fa-server metric-icon text-primary"></i>
+                <div class="metric-value">{{ total_equipements }}</div>
+                <div class="metric-title">Équipements Gérés</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="glass-card" style="border-left: 3px solid #f43f5e;">
+                <i class="fas fa-exclamation-triangle metric-icon text-danger"></i>
+                <div class="metric-value text-danger-custom glow-danger">{{ equipements_hors_ligne }}</div>
+                <div class="metric-title">Noeuds Hors Ligne</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="glass-card" style="border-left: 3px solid #eab308;">
+                <i class="fas fa-biohazard metric-icon text-warning"></i>
+                <div class="metric-value text-warning-custom">{{ incidents_ouverts }}</div>
+                <div class="metric-title">Alertes en Cours</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="glass-card" style="border-left: 3px solid #10b981;">
+                <i class="fas fa-tools metric-icon text-success"></i>
+                <div class="metric-value text-success-custom">{{ maintenances_actives }}</div>
+                <div class="metric-title">Maintenances Actives</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Row -->
+    <div class="row g-4 mb-4">
+        <!-- Incidents & Remediations -->
+        <div class="col-lg-8">
+            <div class="row g-4 h-100">
+                <div class="col-12">
+                    <div class="glass-card h-100">
+                        <h5 class="section-title"><i class="fas fa-bell text-warning"></i> Alertes Récentes</h5>
+                        {% if derniers_incidents %}
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover table-borderless align-middle" style="background: transparent;">
+                                <thead style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                    <tr class="text-muted small text-uppercase">
+                                        <th>Équipement</th>
+                                        <th>Problème</th>
+                                        <th>Niveau</th>
+                                        <th>Date</th>
+                                        <th>Statut</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for inc in derniers_incidents %}
+                                    <tr>
+                                        <td><i class="fas fa-hdd me-2 text-info"></i>{{ inc.equipement.nom }}</td>
+                                        <td>{{ inc.titre }}</td>
+                                        <td>
+                                            {% if inc.niveau == 'critique' %}<span class="badge bg-danger bg-opacity-25 text-danger border border-danger">Critique</span>
+                                            {% elif inc.niveau == 'avertissement' %}<span class="badge bg-warning bg-opacity-25 text-warning border border-warning">Warning</span>
+                                            {% else %}<span class="badge bg-info bg-opacity-25 text-info border border-info">Info</span>{% endif %}
+                                        </td>
+                                        <td class="text-muted small">{{ inc.date_debut|date:"d/m H:i" }}</td>
+                                        <td>
+                                            {% if inc.statut == 'ouvert' %}<i class="fas fa-circle-notch fa-spin text-warning"></i>
+                                            {% else %}<i class="fas fa-check-circle text-success"></i>{% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-shield-alt fs-1 mb-3 opacity-25"></i>
+                            <p>Aucun incident détecté récemment. Le réseau est stable.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="glass-card h-100">
+                        <h5 class="section-title"><i class="fas fa-magic text-info"></i> Remédiations Autorisées</h5>
+                        {% if dernieres_remediations %}
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover table-borderless align-middle" style="background: transparent;">
+                                <tbody>
+                                    {% for rem in dernieres_remediations %}
+                                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                        <td><i class="fas fa-robot text-secondary me-2"></i> {{ rem.equipement.nom }}</td>
+                                        <td>{{ rem.action.nom }}</td>
+                                        <td class="text-muted small">{{ rem.date_action|date:"d/m H:i" }}</td>
+                                        <td class="text-end">
+                                            {% if rem.statut == 'succes' %}
+                                                <span class="badge bg-success bg-opacity-10 text-success"><i class="fas fa-check me-1"></i> Réussite</span>
+                                            {% else %}
+                                                <span class="badge bg-danger bg-opacity-10 text-danger"><i class="fas fa-times me-1"></i> Échec</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-cogs fs-1 mb-3 opacity-25"></i>
+                            <p>Aucune action de remédiation enregistrée.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Activity Log -->
+        <div class="col-lg-4">
+            <div class="glass-card" style="height: 100%; max-height: 800px; overflow-y: auto;">
+                <h5 class="section-title"><i class="fas fa-stream text-primary"></i> Flux d'Activité</h5>
+                <ul class="activity-list">
+                    {% for act in activites %}
+                    <li class="activity-item">
+                        <div class="d-flex w-100">
+                            <div class="mt-1">
+                                {% if 'échec' in act.resultat|lower or 'erreur' in act.resultat|lower %}
+                                    <span class="activity-dot bg-danger glow-danger"></span>
+                                {% elif 'succès' in act.resultat|lower %}
+                                    <span class="activity-dot bg-success"></span>
+                                {% else %}
+                                    <span class="activity-dot bg-info glow-cyan"></span>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="mb-1" style="font-size: 0.9rem; font-weight: 500;">{{ act.action }}</div>
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">{{ act.utilisateur.username|default:"Système/Bot" }}</small>
+                                    <small class="text-muted" style="font-family: monospace;">{{ act.date_action|time:"H:i:s" }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="activity-item text-center text-muted">
+                        Aucun log système...
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

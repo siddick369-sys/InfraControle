@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Helvetica', 'Arial', sans-serif; color: #333; line-height: 1.6; }
+        .header { text-align: center; border-bottom: 2px solid #007bff; padding-bottom: 20px; }
+        .title { color: #007bff; font-size: 28px; margin-bottom: 5px; }
+        .date { font-style: italic; color: #666; }
+        .section { margin-top: 30px; }
+        .section-title { background: #f8f9fa; padding: 10px; border-left: 5px solid #007bff; font-weight: bold; font-size: 20px; }
+        .content { padding: 15px; }
+        .stats-box { display: flex; justify-content: space-around; background: #e9ecef; border-radius: 8px; padding: 20px; margin-top: 20px; }
+        .stat-item { text-align: center; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #007bff; }
+        .footer { margin-top: 50px; font-size: 12px; text-align: center; color: #999; border-top: 1px solid #ddd; padding-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 class="title">Rapport Exécutif Infracontrol</h1>
+        <p class="date">Période : {{ rapport.date_debut }} au {{ rapport.date_fin }}</p>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Résumé Global</div>
+        <div class="content">
+            {{ rapport.resume_global|linebreaks }}
+        </div>
+    </div>
+
+    <div class="stats-box">
+        <div class="stat-item">
+            <div class="stat-value">{{ rapport.nb_incidents }}</div>
+            <div class="stat-label">Incidents</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">{{ rapport.nb_equipements_impactes }}</div>
+            <div class="stat-label">Équipements impactés</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Analyse Intelligente (IA)</div>
+        <div class="content">
+            {{ rapport.analyse_ia|linebreaks }}
+        </div>
+    </div>
+
+    <div class="footer">
+        © 2026 Infracontrol — Plateforme de Supervision Intelligente. Généré le {{ rapport.cree_le|date:"d/m/Y H:i" }}
+    </div>
+</body>
+</html>

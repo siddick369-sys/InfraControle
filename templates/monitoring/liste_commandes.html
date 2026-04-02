@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>📜 Commandes réseau</h2>
+
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>Nom</th>
+            <th>Critique</th>
+            <th>Planifiée</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for cmd in commandes %}
+        <tr>
+            <td>{{ cmd.nom }}</td>
+
+            <td>
+                {% if cmd.critique %}
+                    <span class="badge bg-danger">Critique</span>
+                {% else %}
+                    <span class="badge bg-secondary">Standard</span>
+                {% endif %}
+            </td>
+
+            <td>
+                {% if cmd.id in commandes_planifiees %}
+                    <span class="badge bg-warning">⏱ Planifiée</span>
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+
+            <td>
+                <a href="{% url 'commande_detail' cmd.id %}"
+                   class="btn btn-sm btn-outline-primary">
+                    Détails
+                </a>
+            </td>
+        </tr>
+    {% empty %}
+        <tr>
+            <td colspan="4" class="text-muted text-center">
+                Aucune commande enregistrée
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

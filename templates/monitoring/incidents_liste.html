@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}Centre d'alertes réseau{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="text-center mb-4">🚨 Centre d'alertes réseau</h2>
+
+    <!-- 🔎 Filtres -->
+    <div class="row g-2 mb-3">
+        <div class="col-md-3">
+            <select id="filtre-niveau" class="form-select">
+                <option value="">-- Gravité --</option>
+                <option value="info">Info</option>
+                <option value="avertissement">Avertissement</option>
+                <option value="critique">Critique</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select id="filtre-statut" class="form-select">
+                <option value="">-- Statut --</option>
+                <option value="ouvert">Ouvert</option>
+                <!-- Option "résolu" masquée côté frontend pour garder la liste propre -->
+            </select>
+        </div>
+        <div class="col-md-6">
+            <input
+                type="text"
+                id="recherche"
+                class="form-control"
+                placeholder="🔍 Rechercher un incident..."
+            >
+        </div>
+    </div>
+
+    <!-- 📋 Tableau incidents -->
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Équipement</th>
+                    <th>Titre</th>
+                    <th>Gravité</th>
+                    <th>Statut</th>
+                    <th>Date</th>
+                    <th style="width: 180px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="incident-body">
+                <tr>
+                    <td colspan="6" class="text-center text-muted">
+                        Chargement…
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 🤖 PANNEAU ANALYSE IA -->
+    <div id="ia-panel" class="card mt-4 d-none">
+        <div class="card-header bg-primary text-white">
+            🤖 Analyse IA – Cause racine & recommandations
+        </div>
+        <div class="card-body">
+            <div id="ia-loading" class="text-muted">
+                ⏳ Analyse en cours…
+            </div>
+
+            <pre
+                id="ia-result"
+                class="mt-3"
+                style="white-space: pre-wrap; font-size: 0.95em;"
+            ></pre>
+        </div>
+    </div>
+</div>
+
+<script>
+const tbody = document.getElementById("incident-body");
+const niveau = document.getElementById("filtre-niveau");
+const statut = document.getElementById("filtre-statut");
+const recherche = document.getElementById("recherche");
+const bip = new Audio("/static/sounds/alert.wav");
+
+let previousIncidentIds = new Set();
+let pollingInterval = null;
+
+// ================================
+// 🔄 Chargement incidents
+// ================================
+async function chargerIncidents() {
+    const params = new URLSearchParams({
+        niveau: niveau.value,
+        statut: statut.value,
+        q: recherche.value
+    });
+
+    const res = await fetch(`/monitoring/incidents/data/?${params}`);
+    const data = await res.json();
+
+    tbody.innerHTML = "";
+
+    if (!data.incidents || data.incidents.length === 0) {
+        previousIncidentIds.clear();
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center text-success">
+                    ✅ Aucun incident actif
+                </td>
+            </tr>`;
+        return;
+    }
+
+    // 🔔 Détection nouvelles alertes
+    const currentIds = new Set(data.incidents.map(i => i.id));
+    const nouvelles = [...currentIds].filter(id => !previousIncidentIds.has(id));
+    if (nouvelles.length > 0) {
+        bip.play().catch(() => {});
+    }
+    previousIncidentIds = currentIds;
+
+    data.incidents.forEach(i => {
+        // 🛡️ Filtrage frontend : On ne montre que les incidents ouverts
+        if (i.statut === "résolu") return;
+
+        const couleur =
+            i.niveau === "critique" ? "bg-danger text-light" :
+            i.niveau === "avertissement" ? "bg-warning text-dark" :
+            "bg-info text-dark";
+
+        const statutBadge =
+            i.statut === "résolu"
+                ? `<span class="badge bg-success">Résolu</span>`
+                : `<span class="badge bg-warning text-dark">Ouvert</span>`;
+
+        tbody.insertAdjacentHTML("beforeend", `
+            <tr>
+                <td>${i.equipement}</td>
+                <td>${i.titre}</td>
+                <td><span class="badge ${couleur}">${i.niveau}</span></td>
+                <td>${statutBadge}</td>
+                <td>${i.date_debut}</td>
+                <td>
+                    <button
+                        class="btn btn-sm btn-outline-primary"
+                        onclick="analyserAvecIA(${i.id})"
+                    >
+                        🤖 Analyser IA
+                    </button>
+                </td>
+            </tr>
+        `);
+    });
+}
+
+// ================================
+// 🤖 Analyse IA (async + polling)
+// ================================
+async function analyserAvecIA(incidentId) {
+    const panel = document.getElementById("ia-panel");
+    const result = document.getElementById("ia-result");
+    const loading = document.getElementById("ia-loading");
+
+    panel.classList.remove("d-none");
+    loading.style.display = "block";
+    loading.textContent = "⏳ Groq en cours d'analyse...";
+    result.textContent = "";
+
+    if (pollingInterval) clearInterval(pollingInterval);
+
+    try {
+        // ▶️ Lancer l’analyse
+        const response = await fetch(`/monitoring/incidents/${incidentId}/analyse-ia/`, { method: "POST" });
+        const data = await response.json();
+
+        if (data.status === "success") {
+            // ✅ Succès immédiat (Groq)
+            loading.style.display = "none";
+            fetchIdAnalyse(incidentId); // Appel unique pour récupérer le formaté
+        } else if (data.status === "fallback") {
+            // 🔄 Fallback Celery (Ollama)
+            loading.textContent = "⏳ Groq indisponible. Bascule sur Ollama (Celery)...";
+            pollingInterval = setInterval(() => fetchIdAnalyse(incidentId), 3000);
+        } else {
+            loading.textContent = "❌ " + (data.message || "Erreur inconnue");
+        }
+    } catch (err) {
+        loading.textContent = "❌ Erreur de connexion au serveur.";
+    }
+}
+
+async function fetchIdAnalyse(incidentId) {
+    const result = document.getElementById("ia-result");
+    const loading = document.getElementById("ia-loading");
+
+    const res = await fetch(`/monitoring/incidents/${incidentId}/analyse-ia/resultat/`);
+    const data = await res.json();
+
+    if (data.etat === "terminee") {
+        if (pollingInterval) clearInterval(pollingInterval);
+        loading.style.display = "none";
+
+        const a = data.analyse;
+        result.textContent = `
+🧠 Cause racine
+${a.cause_racine}
+
+📂 Catégorie
+${a.categorie}
+
+🛠 Solution recommandée
+${a.solution_humaine}
+
+⚙️ Remédiation automatique
+${a.remediation_auto || "Aucune"}
+
+🧑‍🏫 Explication simple
+${a.explication_simple}
+
+🎯 Confiance IA : ${Math.round(a.confiance * 100)} %
+        `;
+    }
+}
+
+// ================================
+// ⏱ Auto-refresh + filtres
+// ================================
+setInterval(chargerIncidents, 10000);
+[niveau, statut].forEach(el => el.addEventListener("change", chargerIncidents));
+recherche.addEventListener("input", chargerIncidents);
+
+// 🚀 Initial
+chargerIncidents();
+</script>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Planifications - {{ equipement.nom }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3>📅 Planifications pour {{ equipement.nom }}</h3>
+        <div>
+            <a href="{% url 'detail_equipement' equipement.id %}" class="btn btn-outline-secondary">
+                ⬅️ Retour à l'équipement
+            </a>
+            <a href="{% url 'planifier_commande_equipement' equipement.id %}" class="btn btn-primary">
+                ➕ Nouvelle Planification
+            </a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            {% if planifications %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Commande</th>
+                            <th>Date Prévue</th>
+                            <th>Fréquence</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in planifications %}
+                        <tr>
+                            <td>
+                                <code>{{ p.commande.contenu|truncatechars:50 }}</code>
+                                <br>
+                                <small class="text-muted">Par {{ p.cree_par }}</small>
+                            </td>
+                            <td>
+                                {% if p.derniere_execution %}
+                                    <span title="Dernière exécution : {{ p.derniere_execution|date:'d/m/Y H:i' }}">
+                                        {{ p.date_execution|date:"d/m/Y H:i" }}
+                                    </span>
+                                {% else %}
+                                    {{ p.date_execution|date:"d/m/Y H:i" }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if p.frequence == 'once' %}Une fois
+                                {% elif p.frequence == 'daily' %}Quotidien
+                                {% elif p.frequence == 'weekly' %}Hebdo
+                                {% else %}{{ p.frequence }}{% endif %}
+                            </td>
+                            <td>
+                                {% if p.statut == 'valide' %}<span class="badge bg-success">Valide</span>
+                                {% elif p.statut == 'execute' %}<span class="badge bg-secondary">Exécuté</span>
+                                {% elif p.statut == 'en_attente' %}<span class="badge bg-warning">En attente</span>
+                                {% else %}<span class="badge bg-dark">{{ p.statut }}</span>{% endif %}
+                            </td>
+                            <td>
+                                <form method="post" action="{% url 'supprimer_planification' p.id %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette planification ?');">
+                                        🗑️ Supprimer
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <h5 class="text-muted">Aucune commande planifiée active</h5>
+                <p>Planifiez des maintenances ou requêtes automatisées sur cet équipement.</p>
+                <a href="{% url 'planifier_commande_equipement' equipement.id %}" class="btn btn-primary mt-2">
+                    ➕ Créer une planification
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

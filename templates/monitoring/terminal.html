@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css">
+<script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
+
+<div class="container mt-5 pt-5">
+    <div class="row">
+        <div class="col-md-9">
+            <h4 class="text-white mb-3">
+                <i class="fas fa-terminal me-2"></i>
+                Terminal SSH : <span class="text-info">{{ equipement.nom }}</span> ({{ equipement.adresse_ip }})
+            </h4>
+            <div id="terminal" style="height:600px; background:#000; border: 1px solid #1e293b; border-radius: 8px; padding: 10px;"></div>
+        </div>
+
+        <div class="col-md-3">
+            <h5 class="text-white mb-3"><i class="fas fa-brain me-2 text-warning"></i>Suggestions IA</h5>
+
+            <div class="suggestions-list">
+                {% for category, cmds in suggestions.items %}
+                    <h6 class="text-muted small text-uppercase mt-3">{{ category }}</h6>
+                    {% for cmd in cmds %}
+                        <button
+                            class="btn btn-sm btn-outline-info mb-2 w-100 text-start"
+                            onclick="injectCommand(`{{ cmd }}`)">
+                            <i class="fas fa-chevron-right me-1 small"></i> {{ cmd }}
+                        </button>
+                    {% endfor %}
+                {% empty %}
+                    <p class="text-muted small">Aucune suggestion disponible pour ce type d'équipement.</p>
+                {% endfor %}
+            </div>
+            
+            <div class="mt-4">
+                <button class="btn btn-outline-danger w-100 btn-sm" onclick="location.reload()">
+                    <i class="fas fa-sync-alt"></i> RÉINITIALISER
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const term = new Terminal({
+        cursorBlink: true,
+        fontFamily: "'Courier New', Courier, monospace",
+        fontSize: 14,
+        theme: {
+            background: "#000000",
+            foreground: "#00ff88",
+            cursor: "#fff"
+        }
+    });
+
+    term.open(document.getElementById("terminal"));
+    term.focus();
+    
+    term.write("--- CONNEXION RÉSEAU EN COURS ---\r\n");
+
+    const socket = new WebSocket(
+        (window.location.protocol === "https:" ? "wss://" : "ws://") +
+        window.location.host +
+        "/ws/terminal/{{ equipement.id }}/"
+    );
+
+    socket.onopen = () => {
+        term.write("✅ WebSocket Connecté !\r\n");
+    };
+
+    socket.onmessage = (event) => {
+        term.write(event.data);
+    };
+
+    socket.onerror = (err) => {
+        term.write("\r\n❌ Erreur WebSocket : Impossible de joindre le serveur de terminaux.\r\n");
+    };
+
+    socket.onclose = () => {
+        term.write("\r\n🔒 Session SSH Fermée.\r\n");
+    };
+
+    term.onData((data) => {
+        socket.send(data);
+    });
+
+    function injectCommand(cmd) {
+        // Envoie la commande au serveur
+        socket.send(cmd);
+        // Simule "Entrée"
+        socket.send("\r");
+    }
+</script>
+
+<style>
+    #terminal {
+        box-shadow: 0 0 20px rgba(0, 255, 136, 0.1);
+    }
+    .suggestions-list {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}

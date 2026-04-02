@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% block title %}Status: Hibernation - InfraControl{% endblock %}
+
+{% block content %}
+<style>
+    /* --- 1. THEME "CRYO-STASIS" (ICE/INDIGO) --- */
+    :root {
+        --bg-freeze: #080a18; /* Indigo quasi noir */
+        --neon-ice: #22d3ee; /* Cyan Glacé */
+        --neon-white: #e0f2fe;
+        --text-white: #f8fafc;
+        --card-frosted: rgba(16, 26, 50, 0.85); /* Verre givré sombre */
+    }
+
+    /* Force le texte blanc et CORRIGE L'AFFICHAGE (Z-INDEX) */
+    .freeze-wrapper {
+        color: var(--text-white);
+        position: relative; /* Indispensable pour passer devant le canvas */
+        z-index: 100;       /* Indispensable pour passer devant le canvas */
+        min-height: 85vh;
+        display: flex;
+        align-items: center;
+    }
+
+    h3, p, label, b { color: var(--text-white) !important; }
+    .text-muted { color: #94a3b8 !important; }
+
+    /* --- 2. BACKGROUND DESKTOP (CRYSTALS) --- */
+    #cryo-canvas {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0; /* Derrière tout */
+        background: radial-gradient(circle at bottom, #172554, #080a18);
+    }
+
+    /* --- 3. BACKGROUND MOBILE (FROST FOG) --- */
+    .mobile-frost-bg {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        background: #080a18;
+        overflow: hidden;
+    }
+
+    .frost-layer {
+        position: absolute;
+        top: 0; left: 0; width: 200%; height: 100%;
+        background: linear-gradient(to right, 
+            transparent 0%, 
+            rgba(34, 211, 238, 0.1) 40%, 
+            rgba(34, 211, 238, 0.05) 60%, 
+            transparent 100%);
+        animation: driftFog 20s linear infinite;
+    }
+    .frost-layer-2 {
+        animation-duration: 35s;
+        opacity: 0.5;
+        background: linear-gradient(to right, 
+            transparent 0%, 
+            rgba(255, 255, 255, 0.05) 30%, 
+            transparent 100%);
+    }
+
+    @keyframes driftFog {
+        0% { transform: translateX(-50%); }
+        100% { transform: translateX(0%); }
+    }
+
+    /* --- 4. CARTE & UI --- */
+    .cryo-card {
+        background: var(--card-frosted);
+        backdrop-filter: blur(20px); /* Effet givré puissant */
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(34, 211, 238, 0.3);
+        border-radius: 12px;
+        box-shadow: 0 0 60px rgba(34, 211, 238, 0.1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Effet de glace sur le bord supérieur */
+    .ice-rim {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 4px;
+        background: linear-gradient(90deg, transparent, var(--neon-ice), transparent);
+        box-shadow: 0 0 15px var(--neon-ice);
+    }
+
+    /* Icone Glace */
+    .freeze-icon {
+        font-size: 4rem;
+        color: var(--neon-ice);
+        text-shadow: 0 0 20px rgba(34, 211, 238, 0.6);
+        margin-bottom: 1.5rem;
+        animation: pulseFreeze 4s infinite ease-in-out;
+    }
+
+    @keyframes pulseFreeze {
+        0%, 100% { opacity: 0.8; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.05); text-shadow: 0 0 30px var(--neon-ice); }
+    }
+
+    /* Timer de suppression */
+    .purge-timer {
+        font-family: 'Courier New', monospace;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 10px;
+        border-radius: 6px;
+        color: #ef4444 !important; /* Rouge pour l'urgence de suppression */
+        font-weight: bold;
+        display: inline-block;
+        margin-top: 5px;
+    }
+
+    /* Bouton Réactiver (Heat/Thaw) */
+    .btn-thaw {
+        background: linear-gradient(90deg, #16a34a 0%, #22c55e 100%);
+        border: none;
+        color: white;
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 1px;
+        position: relative;
+        overflow: hidden;
+        transition: 0.3s;
+        box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+    }
+
+    .btn-thaw:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0 35px rgba(34, 197, 94, 0.6);
+        color: white;
+    }
+    
+    /* Effet de chaleur au survol */
+    .btn-thaw::after {
+        content: '';
+        position: absolute;
+        top: 0; left: -100%;
+        width: 100%; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+        transition: 0.5s;
+    }
+    .btn-thaw:hover::after { left: 100%; }
+
+</style>
+
+<canvas id="cryo-canvas" class="d-none d-lg-block"></canvas>
+
+<div class="mobile-frost-bg d-lg-none">
+    <div class="frost-layer"></div>
+    <div class="frost-layer frost-layer-2"></div>
+</div>
+
+<div class="container freeze-wrapper">
+    <div class="row justify-content-center w-100">
+        <div class="col-md-8 col-lg-6">
+            
+            <div class="card cryo-card text-center p-4">
+                <div class="ice-rim"></div>
+                
+                <div class="card-body">
+                    <div class="freeze-icon">
+                        <i class="fas fa-snowflake"></i>
+                    </div>
+
+                    <h3 class="fw-bold mb-2 text-uppercase" style="letter-spacing: 2px;">Compte Hiberné</h3>
+                    <p class="text-white opacity-75 mb-4">
+                        Bonjour <b>{{ request.user.username }}</b>.<br>
+                        Le processus de suppression est en cours.
+                    </p>
+
+                    <div class="alert" style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.05);">
+                        <small class="text-muted text-uppercase d-block mb-1">Date d'effacement définitif (Purge)</small>
+                        <div class="purge-timer">
+                            <i class="fas fa-history me-2"></i>{{ date_suppression|date:"d/m/Y à H:i" }}
+                        </div>
+                    </div>
+
+                    <hr class="border-secondary border-opacity-25 my-4">
+
+                    <p class="small text-white-50 mb-3">
+                        Cette action est réversible. Initiez la séquence de réactivation pour restaurer l'accès immédiat aux infrastructures.
+                    </p>
+
+                    <form method="POST" action="{% url 'recuperer_compte' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-thaw btn-lg w-100 py-3">
+                            <i class="fas fa-bolt me-2"></i> RÉINITIALISER LE SYSTÈME (RECOVERY)
+                        </button>
+                    </form>
+
+                    <div class="mt-3">
+                         <small class="text-muted fst-italic">
+                            Sans action de votre part, les données seront purgées à la date prévue.
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const canvas = document.getElementById('cryo-canvas');
+    if (canvas && window.innerWidth >= 992) {
+        const ctx = canvas.getContext('2d');
+        let w, h;
+        
+        function resize() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        const crystals = [];
+        const crystalCount = 40;
+
+        class Crystal {
+            constructor() {
+                this.reset();
+                // On les place partout au début
+                this.y = Math.random() * h;
+            }
+
+            reset() {
+                this.x = Math.random() * w;
+                this.y = h + Math.random() * 100; // Part du bas
+                this.size = Math.random() * 20 + 5; // Taille variable
+                this.speed = Math.random() * 0.5 + 0.1; // Très lent (Suspension)
+                this.opacity = Math.random() * 0.5 + 0.1;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotSpeed = (Math.random() - 0.5) * 0.005;
+                this.shape = Math.floor(Math.random() * 3) + 3; // 3 à 5 côtés
+            }
+
+            update() {
+                this.y -= this.speed;
+                this.rotation += this.rotSpeed;
+                
+                if (this.y < -50) {
+                    this.reset();
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                
+                ctx.beginPath();
+                // Dessiner un polygone (cristal)
+                for (let i = 0; i < this.shape; i++) {
+                    const angle = (i * 2 * Math.PI) / this.shape;
+                    const r = i % 2 === 0 ? this.size : this.size * 0.5; // Forme irrégulière
+                    const cx = r * Math.cos(angle);
+                    const cy = r * Math.sin(angle);
+                    if (i === 0) ctx.moveTo(cx, cy);
+                    else ctx.lineTo(cx, cy);
+                }
+                ctx.closePath();
+                
+                ctx.fillStyle = `rgba(34, 211, 238, ${this.opacity * 0.2})`; // Remplissage très léger
+                ctx.strokeStyle = `rgba(34, 211, 238, ${this.opacity})`; // Bordure nette
+                ctx.lineWidth = 1;
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+        }
+
+        // Init
+        for(let i=0; i<crystalCount; i++) crystals.push(new Crystal());
+
+        function animate() {
+            ctx.clearRect(0, 0, w, h);
+            
+            crystals.forEach(c => {
+                c.update();
+                c.draw();
+            });
+            
+            requestAnimationFrame(animate);
+        }
+        animate();
+    }
+});
+</script>
+{% endblock %}

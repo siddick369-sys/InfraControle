@@ -1,0 +1,41 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>📊 Tableau des activités récentes</h1>
+<canvas id="logChart" width="600" height="250"></canvas>
+
+<h3 class="mt-5">Top 5 actions récentes</h3>
+<ul id="actionList"></ul>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+fetch("/api/logs/stats/")
+    .then(res => res.json())
+    .then(data => {
+        // ChartJS
+        const ctx = document.getElementById("logChart");
+        new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: "Activités (30 derniers jours)",
+                    data: data.values,
+                    borderColor: "#007bff",
+                    backgroundColor: "rgba(0,123,255,0.1)",
+                    fill: true,
+                    tension: 0.3,
+                }]
+            },
+            options: { responsive: true, scales: { y: { beginAtZero: true } } }
+        });
+
+        // Liste des actions principales
+        const actions = Object.entries(data.actions)
+            .sort((a,b) => b[1]-a[1])
+            .slice(0,5);
+        document.getElementById("actionList").innerHTML = actions
+            .map(([a,v]) => `<li>${a} — <b>${v}</b> fois</li>`)
+            .join("");
+    });
+</script>
+{% endblock %}

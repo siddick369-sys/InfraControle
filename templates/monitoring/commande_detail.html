@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>⚙️ {{ commande.nom }}</h2>
+
+<p class="text-muted">{{ commande.description }}</p>
+
+{% if commande.critique %}
+    <div class="alert alert-danger">
+        ⚠️ Commande critique – confirmation requise
+    </div>
+{% endif %}
+
+<h5>📄 Contenu</h5>
+<pre class="bg-dark text-light p-3 rounded">
+{{ commande.contenu }}
+</pre>
+
+<h5>🎯 Équipements applicables</h5>
+<ul>
+{% for eq in commande.applicable_pour.all %}
+    <li>{{ eq.nom }} ({{ eq.adresse_ip }})</li>
+{% empty %}
+    <li class="text-muted">Tous les équipements</li>
+{% endfor %}
+</ul>
+<a href="{% url 'planifier' commande.id  %}" class="btn btn-action btn-exec text-decoration-none d-block text-center">
+                                <i class="fas fa-terminal me-1"></i> CMD
+                            </a>
+<h5>⏱ Planification</h5>
+{% if planification %}
+    <p>
+        Exécution : {{ planification.date_execution }}<br>
+        Fréquence : {{ planification.frequence }}<br>
+        Statut : {{ planification.statut }}
+    </p>
+{% else %}
+    <p class="text-muted">Non planifiée</p>
+{% endif %}
+
+<hr>
+
+<a href="{% url 'liste_commandes' %}"
+   class="btn btn-secondary">
+   ← Retour
+</a>
+
+{% endblock %}

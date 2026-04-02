@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% block title %}Output Terminal - InfraControl{% endblock %}
+
+{% block content %}
+<style>
+    /* --- 1. THEME "TERMINAL OUTPUT" (GREEN/CYAN) --- */
+    :root {
+        --bg-terminal: #020c02; /* Fond quasi noir teinté de vert */
+        --neon-green: #22c55e;
+        --neon-cyan: #06b6d4;
+        --text-term: #e2e8f0;
+        --card-glass: rgba(2, 20, 2, 0.9); /* Verre très sombre */
+        --input-dark: rgba(0, 0, 0, 0.8);
+    }
+
+    /* Force le texte principal en clair */
+    .result-wrapper {
+        color: var(--text-term);
+        position: relative;
+        z-index: 10;
+        min-height: 85vh;
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+
+    h4, b, span { color: var(--text-term) !important; }
+
+    /* --- 2. BACKGROUND DESKTOP (SIGNAL WAVES) --- */
+    #signal-canvas {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        background: var(--bg-terminal);
+    }
+
+    /* --- 3. BACKGROUND MOBILE (STATIC NOISE) --- */
+    .mobile-static-bg {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        background: var(--bg-terminal);
+        overflow: hidden;
+        opacity: 0.3;
+    }
+
+    .static-noise {
+        position: absolute;
+        top: -50%; left: -50%; width: 200%; height: 200%;
+        background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noiseFilter)"/></svg>');
+        animation: staticShift 0.5s steps(10) infinite;
+    }
+
+    @keyframes staticShift {
+        0% { transform: translate(0,0); }
+        100% { transform: translate(10px, 10px); }
+    }
+
+    /* --- 4. CARTE & UI --- */
+    .terminal-card {
+        background: var(--card-glass);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(34, 197, 94, 0.3); /* Bordure verte subtile */
+        border-radius: 4px; /* Angles droits style terminal */
+        box-shadow: 0 0 30px rgba(34, 197, 94, 0.1);
+        overflow: hidden;
+    }
+
+    /* En-tête de commande style prompt */
+    .cmd-header {
+        border-bottom: 1px solid rgba(34, 197, 94, 0.2);
+        padding-bottom: 15px;
+        margin-bottom: 20px;
+        font-family: 'Courier New', monospace;
+    }
+    
+    .cmd-prompt {
+        color: var(--neon-green);
+        margin-right: 10px;
+        font-weight: bold;
+    }
+
+    /* Badge Info Equipement */
+    .tech-badge {
+        display: inline-block;
+        background: rgba(6, 182, 212, 0.1);
+        border: 1px solid var(--neon-cyan);
+        color: var(--neon-cyan) !important;
+        padding: 5px 12px;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+    }
+
+    /* Bloc de sortie <pre> amélioré (Style CRT) */
+    .terminal-output {
+        background-color: #000 !important;
+        color: var(--neon-green) !important;
+        border: 1px solid var(--neon-green);
+        border-radius: 4px;
+        padding: 1.5em;
+        overflow: auto;
+        max-height: 500px;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.95rem;
+        line-height: 1.4;
+        position: relative;
+        box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+
+        /* Effet "Scanlines" d'écran cathodique */
+        background-image: linear-gradient(transparent 50%, rgba(0, 255, 0, 0.02) 50%);
+        background-size: 100% 4px;
+    }
+
+    /* Scrollbar custom pour le terminal */
+    .terminal-output::-webkit-scrollbar { width: 8px; }
+    .terminal-output::-webkit-scrollbar-track { background: #000; }
+    .terminal-output::-webkit-scrollbar-thumb { background: var(--neon-green); border-radius: 4px; }
+
+
+    /* Bouton Retour */
+    .btn-back-terminal {
+        background: transparent;
+        border: 1px solid #475569;
+        color: #94a3b8;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 1px;
+        font-family: 'Courier New', monospace;
+        transition: 0.3s;
+    }
+    .btn-back-terminal:hover {
+        border-color: var(--neon-cyan);
+        color: var(--neon-cyan);
+        background: rgba(6, 182, 212, 0.05);
+        box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+    }
+
+</style>
+
+<canvas id="signal-canvas" class="d-none d-lg-block"></canvas>
+
+<div class="mobile-static-bg d-lg-none">
+    <div class="static-noise"></div>
+</div>
+
+<div class="container result-wrapper">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            
+            <div class="card terminal-card p-4">
+                
+                <div class="cmd-header d-flex align-items-center flex-wrap">
+                    <h4 class="m-0">
+                        <span class="cmd-prompt">>_</span> EXEC: {{ commande.nom|upper }}
+                    </h4>
+                    <div class="ms-auto mt-2 mt-md-0">
+                        <span class="tech-badge">
+                            <i class="fas fa-server me-2"></i>{{ equipement.nom }} [{{ equipement.adresse_ip }}]
+                        </span>
+                    </div>
+                </div>
+
+                <div class="mb-4 position-relative">
+                     <pre class="terminal-output">{{ sortie }}</pre>
+                </div>
+
+                <div class="text-start">
+                    <a href="{% url 'liste_equipements' %}" class="btn btn-back-terminal px-4 py-2">
+                        <i class="fas fa-chevron-left me-2"></i> Retour à la liste
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const canvas = document.getElementById('signal-canvas');
+    if (canvas && window.innerWidth >= 992) {
+        const ctx = canvas.getContext('2d');
+        let w, h;
+        
+        function resize() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        let offset = 0;
+
+        // Fonction pour dessiner une onde
+        function drawWave(yPos, amplitude, frequency, speed, color, thickness, type='sine') {
+            ctx.beginPath();
+            ctx.lineWidth = thickness;
+            ctx.strokeStyle = color;
+            
+            for (let x = 0; x < w; x += 2) {
+                let y = 0;
+                // Onde sinusoïdale fluide
+                if(type === 'sine') {
+                    y = yPos + Math.sin(x * frequency + offset * speed) * amplitude;
+                } 
+                // Onde carrée "numérique"
+                else if (type === 'square') {
+                    y = yPos + (Math.sin(x * frequency + offset * speed) > 0 ? amplitude : -amplitude);
+                }
+                
+                if (x === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        function animate() {
+            // Traînée très sombre
+            ctx.fillStyle = 'rgba(2, 12, 2, 0.1)';
+            ctx.fillRect(0, 0, w, h);
+            
+            offset += 0.05;
+
+            // Onde principale (Verte, fluide)
+            drawWave(h * 0.3, 50, 0.005, 1, 'rgba(34, 197, 94, 0.4)', 2, 'sine');
+            
+            // Onde secondaire (Cyan, plus rapide)
+            drawWave(h * 0.6, 30, 0.01, 1.5, 'rgba(6, 182, 212, 0.3)', 1.5, 'sine');
+
+            // Onde numérique (Carrée, style data)
+            drawWave(h * 0.8, 20, 0.02, 2, 'rgba(34, 197, 94, 0.2)', 1, 'square');
+            
+            // Onde interférence haute
+             drawWave(h * 0.1, 10, 0.03, 3, 'rgba(6, 182, 212, 0.1)', 1, 'sine');
+
+            requestAnimationFrame(animate);
+        }
+        animate();
+    }
+});
+</script>
+{% endblock %}

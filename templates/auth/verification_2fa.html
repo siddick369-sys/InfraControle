@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% block title %}Authentification 2FA - InfraControl{% endblock %}
+
+{% block content %}
+<style>
+    /* --- 1. THEME "ACCESS CONTROL" (EMERALD/GREEN) --- */
+    :root {
+        --bg-secure: #022c22; /* Vert très très sombre */
+        --neon-green: #10b981;
+        --neon-bright: #34d399;
+        --text-white: #f0fdf4;
+        --card-glass: rgba(6, 78, 59, 0.85); /* Fond vert bouteille translucide */
+        --input-dark: rgba(0, 0, 0, 0.6);
+    }
+
+    /* Force le texte blanc */
+    .verify-wrapper {
+        color: var(--text-white);
+        position: relative;
+        z-index: 10;
+        min-height: 85vh;
+        display: flex;
+        align-items: center;
+    }
+
+    h2, p, label, a { color: var(--text-white) !important; }
+
+    /* --- 2. BACKGROUND DESKTOP (CYBER VAULT RINGS) --- */
+    #vault-canvas {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        background: #020617; /* Fond noir */
+    }
+
+    /* --- 3. BACKGROUND MOBILE (EMERALD PULSE) --- */
+    .mobile-pulse-bg {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        background: radial-gradient(circle at center, #064e3b, #000000);
+        overflow: hidden;
+    }
+
+    .pulse-ring {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100px; height: 100px;
+        border-radius: 50%;
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        animation: pulseGreen 3s infinite cubic-bezier(0.66, 0, 0, 1);
+    }
+
+    .pulse-ring:nth-child(2) { animation-delay: 1.5s; }
+
+    @keyframes pulseGreen {
+        to {
+            width: 300vw;
+            height: 300vw;
+            box-shadow: 0 0 0 50px rgba(16, 185, 129, 0);
+        }
+    }
+
+    /* --- 4. CARTE & UI --- */
+    .verify-card {
+        background: var(--card-glass);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(52, 211, 153, 0.3);
+        border-radius: 16px;
+        box-shadow: 0 0 50px rgba(16, 185, 129, 0.2);
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Icone Cadenas Animée */
+    .lock-icon-container {
+        width: 80px; height: 80px;
+        margin: 0 auto 20px;
+        background: rgba(16, 185, 129, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid var(--neon-green);
+        box-shadow: 0 0 15px var(--neon-green);
+    }
+    
+    .lock-icon-container i {
+        animation: lockBounce 2s infinite;
+    }
+
+    @keyframes lockBounce {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+    }
+
+    /* Input Code 2FA (Gros et espacé) */
+    .form-control-2fa {
+        background-color: var(--input-dark) !important;
+        border: 2px solid #047857;
+        color: var(--neon-bright) !important;
+        font-family: 'Courier New', monospace;
+        font-size: 2rem;
+        letter-spacing: 0.8rem;
+        text-align: center;
+        font-weight: bold;
+        height: 60px;
+        transition: 0.3s;
+    }
+
+    .form-control-2fa:focus {
+        border-color: var(--neon-bright);
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+        background-color: black !important;
+        outline: none;
+    }
+    
+    .form-control-2fa::placeholder {
+        font-size: 1rem;
+        letter-spacing: normal;
+        vertical-align: middle;
+        opacity: 0.5;
+    }
+
+    /* Bouton Validation */
+    .btn-verify {
+        background: linear-gradient(90deg, #059669 0%, #10b981 100%);
+        border: none;
+        color: white;
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 2px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-verify:hover {
+        box-shadow: 0 0 25px rgba(16, 185, 129, 0.6);
+        color: white;
+        transform: scale(1.02);
+    }
+
+    /* Lien d'aide */
+    .help-link {
+        font-size: 0.85rem;
+        text-decoration: none;
+        opacity: 0.7;
+        transition: 0.3s;
+        border: 1px dashed rgba(255,255,255,0.2);
+        padding: 8px 15px;
+        border-radius: 20px;
+        display: inline-block;
+    }
+    
+    .help-link:hover {
+        opacity: 1;
+        background: rgba(255,255,255,0.05);
+        border-color: var(--neon-bright);
+        color: var(--neon-bright) !important;
+    }
+
+</style>
+
+<canvas id="vault-canvas" class="d-none d-lg-block"></canvas>
+
+<div class="mobile-pulse-bg d-lg-none">
+    <div class="pulse-ring"></div>
+    <div class="pulse-ring"></div>
+</div>
+
+<div class="container verify-wrapper">
+    <div class="row justify-content-center w-100">
+        <div class="col-md-6 col-lg-5">
+            
+            <div class="card verify-card p-4">
+                <div class="card-body text-center">
+                    
+                    <div class="lock-icon-container">
+                        <i class="fas fa-fingerprint fa-2x" style="color: var(--neon-bright);"></i>
+                    </div>
+
+                    <h2 class="fw-bold mb-2">ACCESS CHECK</h2>
+                    <p class="text-white-50 small mb-4">
+                        Authentification multifacteur requise.<br>
+                        Veuillez saisir le token dynamique.
+                    </p>
+
+                    <form method="POST">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <input type="text" name="code" 
+                                   class="form-control form-control-2fa" 
+                                   placeholder="000 000" 
+                                   maxlength="6"
+                                   inputmode="numeric" 
+                                   pattern="[0-9]*" 
+                                   autocomplete="one-time-code"
+                                   required autofocus>
+                        </div>
+
+                        <button type="submit" class="btn btn-verify w-100 py-3">
+                            <i class="fas fa-unlock-alt me-2"></i> DÉVERROUILLER
+                        </button>
+                    </form>
+
+                    <div class="mt-4 pt-3 border-top border-secondary border-opacity-25">
+                        <a href="{% url 'reset_2fa_request' %}" class="help-link">
+                            <i class="fas fa-question-circle me-1"></i> Token invalide ou perdu ?
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const canvas = document.getElementById('vault-canvas');
+    if (canvas && window.innerWidth >= 992) {
+        const ctx = canvas.getContext('2d');
+        let w, h;
+        
+        function resize() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Paramètres des anneaux
+        const rings = [];
+        const ringCount = 5;
+        
+        class Ring {
+            constructor(radius, speed, direction) {
+                this.radius = radius;
+                this.speed = speed;
+                this.direction = direction; // 1 ou -1
+                this.angle = Math.random() * Math.PI * 2;
+                // Segments aléatoires (tech style)
+                this.segments = [];
+                const segCount = Math.floor(Math.random() * 4) + 2;
+                for(let i=0; i<segCount; i++) {
+                    this.segments.push({
+                        start: Math.random() * Math.PI * 2,
+                        length: Math.random() * 1.5 + 0.5
+                    });
+                }
+            }
+
+            update() {
+                this.angle += this.speed * this.direction;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(w/2, h/2);
+                ctx.rotate(this.angle);
+                
+                ctx.strokeStyle = 'rgba(16, 185, 129, 0.15)'; // Vert sombre
+                ctx.lineWidth = 2;
+
+                // Dessine les segments
+                this.segments.forEach(seg => {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, seg.start, seg.start + seg.length);
+                    ctx.stroke();
+                });
+
+                // Points décoratifs
+                ctx.fillStyle = '#34d399';
+                this.segments.forEach(seg => {
+                    const x = Math.cos(seg.start) * this.radius;
+                    const y = Math.sin(seg.start) * this.radius;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 2, 0, Math.PI*2);
+                    ctx.fill();
+                });
+
+                ctx.restore();
+            }
+        }
+
+        // Création des anneaux
+        for(let i=1; i<=ringCount; i++) {
+            rings.push(new Ring(
+                200 + (i * 60), // Rayon croissant
+                0.002 + (Math.random() * 0.003), // Vitesse
+                i % 2 === 0 ? 1 : -1 // Alternance sens rotation
+            ));
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, w, h);
+            
+            // Halo central
+            const grad = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, 300);
+            grad.addColorStop(0, 'rgba(6, 78, 59, 0.2)');
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0,0,w,h);
+
+            rings.forEach(r => {
+                r.update();
+                r.draw();
+            });
+            
+            requestAnimationFrame(animate);
+        }
+        animate();
+    }
+});
+</script>
+{% endblock %}

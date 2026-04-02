@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}🔐 Accès critique requis{% endblock %}
+
+{% block content %}
+<style>
+    .lock-screen {
+        min-height: 80vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at center, rgba(14, 165, 233, 0.05) 0%, transparent 70%);
+    }
+    .lock-card {
+        background: rgba(15, 23, 42, 0.8) !important;
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(239, 68, 68, 0.3) !important;
+        box-shadow: 0 0 30px rgba(239, 14, 14, 0.1);
+        border-radius: 16px;
+        width: 100%;
+        max-width: 450px;
+        overflow: hidden;
+    }
+    .lock-header {
+        background: rgba(239, 68, 68, 0.1);
+        padding: 2rem 1.5rem;
+        border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+    }
+    .lock-icon {
+        font-size: 3rem;
+        color: #ef4444;
+        margin-bottom: 1rem;
+        filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.5));
+    }
+    .tech-input {
+        background: rgba(15, 23, 42, 0.9) !important;
+        border: 1px solid rgba(148, 163, 184, 0.3) !important;
+        color: #fff !important;
+        padding: 12px 15px !important;
+        font-size: 1.1rem;
+    }
+    .tech-input:focus {
+        border-color: #ef4444 !important;
+        box-shadow: 0 0 15px rgba(239, 68, 68, 0.2) !important;
+    }
+    .btn-verify {
+        background: #ef4444;
+        border: none;
+        padding: 12px;
+        font-weight: bold;
+        letter-spacing: 1px;
+        transition: 0.3s;
+    }
+    .btn-verify:hover {
+        background: #dc2626;
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+        transform: translateY(-2px);
+    }
+</style>
+
+<div class="lock-screen">
+    <div class="lock-card">
+        <div class="lock-header text-center">
+            <i class="fas fa-user-shield lock-icon"></i>
+            <h4 class="text-white fw-bold mb-1">ACCÈS CRITIQUE</h4>
+            <p class="text-muted small">Veuillez confirmer votre identité pour continuer</p>
+        </div>
+        
+        <div class="card-body p-4">
+            {% if bloque %}
+                <div class="alert alert-danger border-0 bg-danger bg-opacity-10 text-center">
+                    <i class="fas fa-ban me-2"></i> 
+                    <strong>Compte bloqué.</strong><br>
+                    Trop de tentatives échouées.
+                </div>
+            {% else %}
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-4">
+                        <label class="form-label text-muted small text-uppercase fw-bold">Clé d'authentification</label>
+                        <input type="password" name="password" class="form-control tech-input" 
+                               placeholder="Saisissez votre mot de passe" required autofocus>
+                    </div>
+                    <button type="submit" class="btn btn-verify btn-danger w-100 mb-2">
+                        DÉVERROUILLER LE SYSTÈME
+                    </button>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'dashboard_monitoring' %}" class="text-muted small text-decoration-none">
+                            <i class="fas fa-arrow-left me-1"></i> Retour au tableau de bord
+                        </a>
+                    </div>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

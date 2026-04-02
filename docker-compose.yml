@@ -1,0 +1,235 @@
+services:
+  # ==========================================================
+  # 🌐 DJANGO APPLICATION
+  # ==========================================================
+  django:
+    build: .
+    container_name: infracontrol-django
+    # command: gunicorn InfraContol.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120
+    command: daphne -b 0.0.0.0 -p 8000 InfraContol.asgi:application
+    volumes:
+      - .:/app
+      - static_files:/app/staticfiles
+      - media_files:/app/media
+    ports:
+      - "127.0.0.1:8010:8000"
+    labels:
+      - "antigravity.fix=true"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgres://${DB_USER:-infrauser}:${DB_PASSWORD:-strongpassword}@postgres:5432/${DB_NAME:-infracontrol}
+      - REDIS_URL=redis://redis:6379/1
+      - CELERY_BROKER_URL=redis://redis:6379/1
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    networks:
+      - infranet
+
+  # ==========================================================
+  # 🐘 POSTGRESQL
+  # ==========================================================
+  postgres:
+    image: postgres:16-alpine3.22
+    container_name: infracontrol-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-infracontrol}
+      POSTGRES_USER: ${DB_USER:-infrauser}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-strongpassword}
+    volumes:
+      - infracontol_pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - infranet
+
+  # ==========================================================
+  # 🔴 REDIS (Broker Celery + Cache)
+  # ==========================================================
+  redis:
+    image: redis:7-alpine
+    container_name: infracontrol-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - infranet
+
+  # ==========================================================
+  # ⚙️ CELERY WORKER
+  # ==========================================================
+  celery:
+    build: .
+    container_name: infracontrol-celery
+    command: celery -A InfraContol worker -l info --concurrency=4
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    networks:
+      - infranet
+    environment:
+      - DATABASE_URL=postgres://${DB_USER:-infrauser}:${DB_PASSWORD:-strongpassword}@postgres:5432/${DB_NAME:-infracontrol}
+      - REDIS_URL=redis://redis:6379/1
+      - CELERY_BROKER_URL=redis://redis:6379/1
+    depends_on:
+      - postgres
+      - redis
+
+  # ==========================================================
+  # ⏰ CELERY BEAT (Planificateur)
+  # ==========================================================
+  celery-beat:
+    build: .
+    container_name: infracontrol-beat
+    command: celery -A InfraContol beat -l info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgres://${DB_USER:-infrauser}:${DB_PASSWORD:-strongpassword}@postgres:5432/${DB_NAME:-infracontrol}
+      - REDIS_URL=redis://redis:6379/1
+      - CELERY_BROKER_URL=redis://redis:6379/1
+    depends_on:
+      - redis
+      - postgres
+    restart: unless-stopped
+    networks:
+      - infranet
+
+#  # ==========================================================
+#  # 🤖 OLLAMA (IA Locale)
+#  # ==========================================================
+#  ollama:
+#    image: ollama/ollama
+#    container_name: infracontrol-ollama
+#    ports:
+#      - "11434:11434"
+#    volumes:
+#      - ollama_data:/root/.ollama
+#    restart: unless-stopped
+#    networks:
+#      - infranet
+
+  # ==========================================================
+  # 📊 PROMETHEUS (Métriques)
+  # ==========================================================
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: infracontrol-prometheus
+    ports:
+      - "127.0.0.1:9010:9090"
+    volumes:
+      - ./monitoring_stack/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring_stack/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+    restart: unless-stopped
+    networks:
+      - infranet
+
+  # ==========================================================
+  # 📈 GRAFANA (Dashboards)
+  # ==========================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: infracontrol-grafana
+    ports:
+      - "127.0.0.1:3010:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - infranet
+
+  # ==========================================================
+  # 🚨 ALERTMANAGER
+  # ==========================================================
+  alertmanager:
+    image: prom/alertmanager:v0.25.0
+    container_name: infracontrol-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring_stack/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+    restart: unless-stopped
+    networks:
+      - infranet
+
+  # ==========================================================
+  # 📋 DOZZLE (Logs Docker)
+  # ==========================================================
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: infracontrol-dozzle
+    ports:
+      - "127.0.0.1:8088:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    networks:
+      - infranet
+
+  # ==========================================================
+  # 📦 CADVISOR (Métriques Conteneurs)
+  # ==========================================================
+    # cadvisor on Windows is often problematic with these mounts. 
+    # Commented out or adjusted if necessary.
+    # restart: unless-stopped
+    # networks:
+    #   - infranet
+
+  # ==========================================================
+  # 🖥️ NODE EXPORTER (Métriques Système)
+  # ==========================================================
+  node-exporter:
+    image: prom/node-exporter:v1.6.0
+    container_name: infracontrol-node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped
+    networks:
+      - infranet
+
+# ==========================================================
+# VOLUMES
+# ==========================================================
+volumes:
+  infracontol_pg_data:
+  redis_data:
+  grafana_data:
+  prometheus_data:
+  ollama_data:
+  static_files:
+  media_files:
+
+# ==========================================================
+# NETWORKS
+# ==========================================================
+networks:
+  infranet:
+    driver: bridge

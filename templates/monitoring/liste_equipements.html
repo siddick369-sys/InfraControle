@@ -1,0 +1,484 @@
+{% extends "base.html" %}
+{% block title %}Inventaire Réseau - InfraControl{% endblock %}
+
+{% block content %}
+<style>
+    /* --- 1. THEME "DATACENTER" --- */
+    :root {
+        --bg-grid: #0f172a;
+        --card-bg: rgba(15, 23, 42, 0.95);
+        --neon-cyan: #0ea5e9;
+        --neon-green: #10b981;
+        --neon-purple: #8b5cf6;
+        --text-main: #f1f5f9;
+        --border-dim: rgba(148, 163, 184, 0.2);
+    }
+
+    /* Force texte blanc */
+    .inventory-wrapper {
+        color: var(--text-main);
+        position: relative;
+        z-index: 10;
+        min-height: 85vh;
+        padding-bottom: 3rem;
+    }
+
+    h3, p, span { color: var(--text-main) !important; }
+
+    /* --- 2. BACKGROUND DESKTOP (ACTIVE NODES) --- */
+    #nodes-canvas {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        background: #020617;
+    }
+
+    /* --- 3. BACKGROUND MOBILE (SCANLINES) --- */
+    .mobile-scan-bg {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 0;
+        background: #020617;
+        background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+        background-size: 100% 4px, 6px 100%;
+    }
+    
+    .scan-overlay {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: linear-gradient(to bottom, transparent 50%, rgba(14, 165, 233, 0.1) 51%, transparent 52%);
+        background-size: 100% 200%;
+        animation: scanMove 5s linear infinite;
+    }
+
+    @keyframes scanMove { 0% { background-position: 0% 0%; } 100% { background-position: 0% 100%; } }
+
+    /* --- 4. CARTE AVEC BORDURE ANIMÉE --- */
+    .device-card-wrapper {
+        position: relative;
+        border-radius: 12px;
+        background: var(--bg-grid);
+        overflow: hidden; /* Important pour masquer le débordement de l'animation */
+        transition: transform 0.3s ease;
+        z-index: 1;
+        padding: 2px; /* Épaisseur de la bordure animée */
+    }
+
+    /* L'animation de bordure (Pseudo-élément rotatif) */
+    .device-card-wrapper::before {
+        content: "";
+        position: absolute;
+        top: -50%; left: -50%;
+        width: 200%; height: 200%;
+        background: conic-gradient(
+            transparent, 
+            transparent, 
+            transparent, 
+            var(--neon-cyan)
+        );
+        animation: rotate-border 4s linear infinite;
+        z-index: -1; /* Derrière le contenu */
+    }
+    
+    /* Deuxième lueur pour adoucir */
+    .device-card-wrapper::after {
+        content: "";
+        position: absolute;
+        top: -50%; left: -50%;
+        width: 200%; height: 200%;
+        background: conic-gradient(
+            transparent, 
+            transparent, 
+            var(--neon-purple)
+        );
+        animation: rotate-border 4s linear infinite;
+        animation-delay: -2s; /* Décalage pour avoir 2 couleurs */
+        z-index: -1;
+    }
+
+    @keyframes rotate-border {
+        100% { transform: rotate(360deg); }
+    }
+
+    .device-card-wrapper:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Contenu de la carte (Overlay qui cache le centre du gradient) */
+    .device-card-content {
+        background: var(--card-bg);
+        border-radius: 10px; /* Légèrement moins que le wrapper */
+        height: 100%;
+        padding: 1.5rem;
+        position: relative;
+        z-index: 2;
+    }
+
+    /* Badges et Textes */
+    .ip-badge {
+        font-family: 'Consolas', monospace;
+        background: rgba(0, 0, 0, 0.5);
+        border: 1px solid var(--border-dim);
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        color: var(--neon-cyan);
+    }
+
+    .status-dot {
+        height: 10px; width: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+    }
+    .status-active { background: var(--neon-green); box-shadow: 0 0 8px var(--neon-green); }
+    .status-inactive { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+
+    /* Boutons Actions */
+    .btn-action {
+        width: 100%;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-radius: 6px;
+        padding: 8px 0;
+        transition: 0.2s;
+    }
+    
+    .btn-exec {
+        background: rgba(14, 165, 233, 0.15);
+        color: var(--neon-cyan);
+        border: 1px solid rgba(14, 165, 233, 0.3);
+    }
+    .btn-exec:hover { background: var(--neon-cyan); color: white; }
+
+    .btn-test {
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--neon-green);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .btn-test:hover { background: var(--neon-green); color: white; }
+    
+    /* --- 5. MODAL TECH STYLES --- */
+    .tech-input {
+        background: rgba(15, 23, 42, 0.7) !important;
+        border: 1px solid var(--border-dim) !important;
+        color: var(--text-main) !important;
+        transition: all 0.3s ease;
+    }
+    .tech-input:focus {
+        background: rgba(15, 23, 42, 0.9) !important;
+        border-color: var(--neon-cyan) !important;
+        box-shadow: 0 0 10px rgba(14, 165, 233, 0.3) !important;
+        color: #fff !important;
+    }
+    .tech-label {
+        color: var(--neon-cyan) !important;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+    }
+    .modal-content.tech-modal {
+        border: 1px solid var(--neon-cyan);
+        box-shadow: 0 0 20px rgba(14, 165, 233, 0.2);
+    }
+
+</style>
+
+<canvas id="nodes-canvas" class="d-none d-lg-block"></canvas>
+
+<div class="mobile-scan-bg d-lg-none">
+    <div class="scan-overlay"></div>
+</div>
+
+<div class="container inventory-wrapper pt-4">
+    
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-5">
+        <div>
+            <h3 class="fw-bold mb-1"><i class="fas fa-server me-2 text-muted"></i>INFRASTRUCTURE</h3>
+            <p class="text-muted small m-0">Gestion et monitoring des équipements actifs</p>
+        </div>
+        <div class="mt-3 mt-md-0 d-flex gap-2">
+            <form method="post" action="{% url 'basculer_maintenance_generale' %}" onsubmit="return confirm('Voulez-vous clôturer TOUTES les maintenances en cours et remettre le parc en service ?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-warning d-flex align-items-center gap-2">
+                    <i class="fas fa-rocket"></i>
+                    <span>REMETTRE TOUT EN SERVICE</span>
+                </button>
+            </form>
+            <a href="{% url 'ajouter_equipement' %}" class="btn btn-outline-light d-flex align-items-center gap-2">
+                <i class="fas fa-plus-circle text-success"></i> 
+                <span>DÉPLOYER ÉQUIPEMENT</span>
+            </a>
+            <button type="button" class="btn btn-outline-info d-flex align-items-center gap-2" onclick="location.reload()">
+                <i class="fas fa-sync-alt"></i> 
+                <span>ACTUALISER</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        {% for e in equipements %}
+        <div class="col-md-6 col-lg-4 col-xl-3">
+            <div class="device-card-wrapper">
+                <div class="device-card-content d-flex flex-column h-100">
+                    
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3 text-secondary">
+                                <i class="fas fa-network-wired fa-2x"></i>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold m-0 text-white">{{ e.nom }}</h5>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="small text-muted text-uppercase" style="font-size: 0.7rem;">{{ e.get_type_equipement_display }}</span>
+                                    <button class="btn btn-sm p-0 text-info border-0 bg-transparent" 
+                                            onclick="openEditModal('{{ e.id }}', '{{ e.nom|escapejs }}', '{{ e.type_equipement|escapejs }}', '{{ e.adresse_ip|escapejs }}', '{{ e.port_ssh|escapejs }}', '{{ e.utilisateur_ssh|escapejs }}', '{{ e.localisation|escapejs }}', '{{ e.description|escapejs }}', {{ e.actif|yesno:'true,false' }})"
+                                            title="Modifier">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <span class="status-dot {% if 'Actif' in e.statut or 'UP' in e.statut %}status-active{% else %}status-inactive{% endif %}"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="d-flex align-items-center justify-content-between bg-black bg-opacity-20 p-2 rounded">
+                            <span class="small text-muted"><i class="fas fa-ethernet me-1"></i> IPv4</span>
+                            <span class="ip-badge">{{ e.adresse_ip }}</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-auto row g-2">
+                        <div class="col-6">
+                            <a href="{% url 'terminal_equipement' e.id  %}" class="btn btn-action btn-exec text-decoration-none d-block text-center">
+                                <i class="fas fa-terminal me-1"></i> CMD
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{% url 'tester_connexion' e.id %}" class="btn btn-action btn-test text-decoration-none d-block text-center">
+                                <i class="fas fa-search me-1"></i> PING
+                            </a>
+                            <div class="text-center mt-3">
+    <a href="{% url 'tester_ssh' e.id %}" class="btn btn-outline-primary">
+        🔌 Tester la connexion SSH
+    </a>
+</div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <div class="opacity-50">
+                <i class="fas fa-server fa-4x mb-3 text-muted"></i>
+                <h4 class="text-muted">Aucun équipement détecté</h4>
+                <p class="small text-muted">Initialisez le premier nœud réseau pour commencer.</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- 🛠️ MODAL DE MODIFICATION -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content tech-modal bg-dark text-white">
+            <div class="modal-header border-secondary bg-black bg-opacity-30">
+                <h5 class="modal-title" id="editModalLabel"><i class="fas fa-microchip me-2 text-info"></i>CONFIGURATION DU NŒUD</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="editForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="equipement_id" id="edit_id">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <label class="tech-label mb-2">Nom du nœud</label>
+                            <input type="text" name="nom" id="edit_nom" class="form-control tech-input" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="tech-label mb-2">Type d'équipement</label>
+                            <select name="type_equipement" id="edit_type" class="form-select tech-input" required>
+                                <option value="routeur">🛰️ Routeur</option>
+                                <option value="switch">🔌 Switch</option>
+                                <option value="serveur">🐧 Serveur Linux</option>
+                                <option value="serveur_win">🪟 Serveur Windows</option>
+                                <option value="pc_win">💻 PC Windows</option>
+                                <option value="parefeu">🛡️ Pare-feu</option>
+                                <option value="autre">⚙️ Autre</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="tech-label mb-2">Adresse IPv4</label>
+                            <div class="input-group">
+                                <span class="input-group-text tech-input border-end-0 text-muted"><i class="fas fa-network-wired"></i></span>
+                                <input type="text" name="adresse_ip" id="edit_ip" class="form-control tech-input border-start-0" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3 ssh-field">
+                            <label class="tech-label mb-2">Port SSH</label>
+                            <input type="number" name="port_ssh" id="edit_port" class="form-control tech-input" value="22" required>
+                        </div>
+                        <div class="col-md-3 ssh-field">
+                            <label class="tech-label mb-2">Utilisateur SSH</label>
+                            <input type="text" name="utilisateur_ssh" id="edit_user" class="form-control tech-input" required>
+                        </div>
+                        <div class="col-md-12 ssh-field">
+                            <label class="tech-label mb-2">Clé d'accès (Mot de passe)</label>
+                            <input type="password" name="mot_de_passe_ssh" id="edit_pass" class="form-control tech-input" placeholder="•••••••• (Laisser vide pour ne pas changer)">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="tech-label mb-2">Localisation Physique</label>
+                            <input type="text" name="localisation" id="edit_loc" class="form-control tech-input">
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check form-switch p-2 bg-black bg-opacity-20 rounded w-100 border border-secondary border-opacity-25">
+                                <input class="form-check-input tech-switch ms-0 me-2" type="checkbox" name="actif" id="edit_actif">
+                                <label class="form-check-label text-white small" for="edit_actif">SUPERVISION ACTIVE</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="tech-label mb-2">Notes & Description</label>
+                            <textarea name="description" id="edit_desc" class="form-control tech-input" rows="2"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-secondary bg-black bg-opacity-30">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">ANNULER</button>
+                <button type="button" class="btn btn-info px-4 btn-sm fw-bold" id="saveEditBtn">
+                    <i class="fas fa-save me-1"></i> METTRE À JOUR
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const canvas = document.getElementById('nodes-canvas');
+    if (canvas && window.innerWidth >= 992) {
+        const ctx = canvas.getContext('2d');
+        let w, h;
+        
+        function resize() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Grille de points
+        const spacing = 40;
+        
+        function drawNodes() {
+            ctx.clearRect(0, 0, w, h);
+            
+            // Dessiner la grille statique
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.1)';
+            for(let x=0; x<w; x+=spacing) {
+                for(let y=0; y<h; y+=spacing) {
+                    ctx.fillRect(x, y, 1, 1);
+                }
+            }
+
+            // Dessiner des "activités" aléatoires
+            const activeCount = 15;
+            for(let i=0; i<activeCount; i++) {
+                const ax = Math.floor(Math.random() * (w/spacing)) * spacing;
+                const ay = Math.floor(Math.random() * (h/spacing)) * spacing;
+                
+                // Effet de lueur
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = Math.random() > 0.5 ? '#0ea5e9' : '#10b981'; // Cyan ou Vert
+                ctx.fillStyle = ctx.shadowColor;
+                
+                ctx.beginPath();
+                ctx.arc(ax, ay, 2, 0, Math.PI*2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        // Animation lente (3 images par seconde pour effet "Serveur")
+        setInterval(drawNodes, 300);
+    }
+});
+
+function openEditModal(id, nom, type, ip, port, user, loc, desc, actif) {
+    document.getElementById('edit_id').value = id;
+    document.getElementById('edit_nom').value = nom;
+    document.getElementById('edit_type').value = type;
+    document.getElementById('edit_ip').value = ip;
+    document.getElementById('edit_port').value = port;
+    document.getElementById('edit_user').value = user;
+    document.getElementById('edit_loc').value = loc;
+    document.getElementById('edit_desc').value = desc;
+    document.getElementById('edit_actif').checked = actif;
+    document.getElementById('edit_pass').value = ''; // Reset password field
+
+    const modal = new bootstrap.Modal(document.getElementById('editModal'));
+    modal.show();
+    
+    // Toggle SSH fields visibility
+    toggleModalSSH();
+}
+
+function toggleModalSSH() {
+    const type = document.getElementById('edit_type').value;
+    const sshFields = document.querySelectorAll('.ssh-field');
+    sshFields.forEach(f => {
+        if (type === 'wifi') {
+            f.style.display = 'none';
+        } else {
+            f.style.display = 'block';
+        }
+    });
+}
+
+document.getElementById('edit_type').addEventListener('change', toggleModalSSH);
+
+document.getElementById('saveEditBtn').addEventListener('click', function() {
+    const id = document.getElementById('edit_id').value;
+    const form = document.getElementById('editForm');
+    const formData = new FormData(form);
+    
+    // Add AJAX header
+    const headers = {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+    };
+
+    fetch(`/monitoring/equipements/${id}/modifier/`, {
+        method: 'POST',
+        body: formData,
+        headers: headers
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            location.reload();
+        } else {
+            if (data.redirect_url) {
+                window.location.href = data.redirect_url;
+            } else {
+                showCustomAlert("Erreur lors de la modification : " + JSON.stringify(data.errors), "error", "ACCÈS REFUSÉ / ERREUR CONFIG");
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showCustomAlert("Défaut de liaison avec le serveur de supervision. Vérifiez vos conteneurs.", "error", "ERREUR RÉSEAU CRITIQUE");
+    });
+});
+</script>
+{% endblock %}

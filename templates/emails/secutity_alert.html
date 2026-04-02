@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background-color: #f3f5f9;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      background-color: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      max-width: 600px;
+      margin: auto;
+      padding: 25px;
+    }
+    h2 {
+      color: #e53935;
+      margin-bottom: 10px;
+    }
+    .alert-box {
+      background: #ffebee;
+      border-left: 5px solid #e53935;
+      padding: 10px 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    .details {
+      background: #f9fafc;
+      border: 1px solid #dce3ed;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+    .footer {
+      text-align: center;
+      font-size: 13px;
+      color: #888;
+      margin-top: 25px;
+    }
+    .badge {
+      display: inline-block;
+      background: #e53935;
+      color: white;
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>🚨 Alerte Sécurité - InfraControl</h2>
+
+    <div class="alert-box">
+      Une activité suspecte a été détectée sur votre plateforme InfraControl.
+    </div>
+
+    <div class="details">
+      <p><strong>📅 Date :</strong> {{ date }}</p>
+      <p><strong>⚙️ Action :</strong> {{ action }}</p>
+      <p><strong>🌐 Adresse IP :</strong> {{ ip }}</p>
+      <p><strong>📝 Détails :</strong> {{ details }}</p>
+      <p><strong>📍 Niveau de sévérité :</strong>
+        <span class="badge">{{ severity }}</span>
+      </p>
+    </div>
+
+    <p>Merci de vérifier immédiatement le <b>Journal des activités</b> depuis l’interface administrateur pour confirmer et bloquer toute tentative malveillante.</p>
+
+    <div class="footer">
+      © 2026 <b>InfraControl</b> — Système de Défense Active Automatisé 🛡️
+    </div>
+  </div>
+</body>
+</html>
