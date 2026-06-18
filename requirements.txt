@@ -61,6 +61,7 @@ whitenoise
 # --- Images ---
 Pillow
 qrcode[pil]
+python-decouple
 
 # --- Reporting ---
 weasyprint

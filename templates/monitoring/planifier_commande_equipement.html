@@ -2,59 +2,183 @@
 {% block title %}Planifier une commande - {{ equipement.nom }}{% endblock %}
 
 {% block content %}
+<style>
+    /* Premium Dark Theme - Sans Light Mode */
+    body {
+        background-color: #0f172a !important; /* bg-slate-900 */
+        color: #f1f5f9 !important; /* text-slate-100 */
+    }
+    .premium-card {
+        background: rgba(30, 41, 59, 0.7); /* bg-slate-800 with opacity */
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+    }
+    .premium-header {
+        background: linear-gradient(90deg, rgba(14, 165, 233, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 1.5rem;
+    }
+    .premium-header h5 {
+        color: #38bdf8;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        margin: 0;
+    }
+    .premium-body {
+        padding: 2rem;
+    }
+    
+    /* Dark Form Controls */
+    .form-control, .form-select {
+        background-color: rgba(15, 23, 42, 0.6) !important;
+        border: 1px solid rgba(148, 163, 184, 0.2) !important;
+        color: #f8fafc !important;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        transition: all 0.2s ease;
+    }
+    .form-control:focus, .form-select:focus {
+        background-color: rgba(15, 23, 42, 0.9) !important;
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2) !important;
+    }
+    .form-control::placeholder {
+        color: #64748b;
+    }
+    .form-label {
+        color: #cbd5e1;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Buttons */
+    .btn-premium-primary {
+        background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+        border: none;
+        color: white;
+        padding: 0.6rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-premium-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(14, 165, 233, 0.6);
+        color: white;
+    }
+    .btn-premium-secondary {
+        background: rgba(51, 65, 85, 0.5);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        color: #cbd5e1;
+        padding: 0.6rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    .btn-premium-secondary:hover {
+        background: rgba(71, 85, 105, 0.8);
+        color: white;
+    }
+    .text-muted-premium {
+        color: #94a3b8 !important;
+    }
+</style>
+
 <div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">📅 Planifier une commande sur {{ equipement.nom }}</h5>
+        <div class="col-md-9">
+            
+            <div class="mb-4">
+                <a href="{% url 'detail_equipement' equipement.id %}" class="text-decoration-none text-muted-premium" style="transition: color 0.2s;">
+                    <i class="fas fa-arrow-left me-2"></i> Retour à {{ equipement.nom }}
+                </a>
+            </div>
+
+            <div class="premium-card">
+                <div class="premium-header d-flex align-items-center">
+                    <div class="me-3" style="font-size: 1.5rem; color: #38bdf8;">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">Planifier une exécution automatisée</h5>
+                        <small class="text-muted-premium">Configurez une tâche Ansible ou SSH pour {{ equipement.nom|upper }}</small>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <p class="text-muted">
-                        Entrez la commande à exécuter sur l'équipement. Les commandes sensibles sont automatiquement bloquées.
-                    </p>
+                
+                <div class="premium-body">
+                    <div class="alert alert-info d-flex align-items-center mb-4" style="background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.3); color: #bae6fd; border-radius: 10px;">
+                        <i class="fas fa-shield-alt fa-2x me-3 text-info"></i>
+                        <div>
+                            <strong>Sécurité Active :</strong> Les commandes destructives <code>rm -rf</code> ou reboots critiques non autorisés seront automatiquement bloquées par l'IA d'InfraControl.
+                        </div>
+                    </div>
                     
                     <form method="post">
                         {% csrf_token %}
                         
                         {{ form.non_field_errors }}
                         
-                        <div class="mb-3">
-                            <label for="{{ form.commande_texte.id_for_label }}" class="form-label fw-bold">Commande</label>
+                        <div class="mb-4">
+                            <label for="{{ form.commande_texte.id_for_label }}" class="form-label">
+                                <i class="fas fa-terminal me-2 text-primary"></i>Script / Commande SSH
+                            </label>
                             {{ form.commande_texte }}
                             {% if form.commande_texte.errors %}
-                                <div class="text-danger small mt-1">{{ form.commande_texte.errors }}</div>
+                                <div class="text-danger small mt-2"><i class="fas fa-exclamation-triangle me-1"></i>{{ form.commande_texte.errors }}</div>
                             {% endif %}
-                            <small class="text-muted d-block mt-1">{{ form.commande_texte.help_text }}</small>
+                            <small class="text-muted-premium d-block mt-2"><i class="fas fa-info-circle me-1"></i>{{ form.commande_texte.help_text }}</small>
                         </div>
                         
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.date_execution.id_for_label }}" class="form-label fw-bold">Date de Première Exécution</label>
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-6">
+                                <label for="{{ form.date_execution.id_for_label }}" class="form-label">
+                                    <i class="far fa-clock me-2 text-warning"></i>Date & Heure Pivot
+                                </label>
                                 {{ form.date_execution }}
                                 {% if form.date_execution.errors %}
-                                    <div class="text-danger small mt-1">{{ form.date_execution.errors }}</div>
+                                    <div class="text-danger small mt-2"><i class="fas fa-exclamation-triangle me-1"></i>{{ form.date_execution.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.frequence.id_for_label }}" class="form-label fw-bold">Fréquence</label>
+                            <div class="col-md-6">
+                                <label for="{{ form.frequence.id_for_label }}" class="form-label">
+                                    <i class="fas fa-sync-alt me-2 text-success"></i>Récurrence
+                                </label>
                                 {{ form.frequence }}
                                 {% if form.frequence.errors %}
-                                    <div class="text-danger small mt-1">{{ form.frequence.errors }}</div>
+                                    <div class="text-danger small mt-2"><i class="fas fa-exclamation-triangle me-1"></i>{{ form.frequence.errors }}</div>
                                 {% endif %}
                             </div>
                         </div>
 
-                        <div class="d-flex justify-content-between mt-4">
-                            <a href="{% url 'detail_equipement' equipement.id %}" class="btn btn-outline-secondary">Annuler</a>
-                            <button type="submit" class="btn btn-success">
-                                ✅ Planifier
+                        <hr style="border-color: rgba(255,255,255,0.1); margin: 2rem 0;">
+
+                        <div class="d-flex justify-content-end gap-3">
+                            <a href="{% url 'liste_planifications_equipement' equipement.id %}" class="btn-premium-secondary text-decoration-none">
+                                <i class="fas fa-times me-2"></i>Annuler
+                            </a>
+                            <button type="submit" class="btn-premium-primary">
+                                <i class="fas fa-rocket me-2"></i>Activer la Planification
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
+            
         </div>
     </div>
 </div>
+<script>
+    // Ajout automatique des classes pour les inputs non stylisés par Django
+    document.addEventListener("DOMContentLoaded", () => {
+        document.querySelectorAll("input, select, textarea").forEach(el => {
+            if(el.type !== 'hidden' && el.type !== 'checkbox') {
+                el.classList.add("form-control");
+            }
+        });
+    });
+</script>
 {% endblock %}

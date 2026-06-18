@@ -7,9 +7,11 @@ from monitoring.models import EquipementReseau, Incident
 
 logger = logging.getLogger('reports.ai')
 
+from decouple import config
+
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_API_KEY = getattr(settings, "GROQ_API_KEY", os.environ.get("GROQ_API_KEY", ""))
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_API_KEY = config("GROQ_API_KEY", default=None)
+GROQ_MODEL = config("GROQ_MODEL", default="llama-3.3-70b-versatile")
 
 def collecter_donnees_brutes(date_debut, date_fin):
     """
@@ -31,11 +33,11 @@ def collecter_donnees_brutes(date_debut, date_fin):
         moyenne_ram=Avg('ram_usage')
     )
     
-    # Incidents de la période
+    # Incidents de la période (limités à 20 pour éviter le 413 Payload Too Large)
     incidents = Incident.objects.filter(
         date_debut__gte=date_debut, 
         date_debut__lte=date_fin
-    ).order_by('-niveau', '-date_debut')
+    ).order_by('-niveau', '-date_debut')[:20]
     
     incidents_details = []
     for inc in incidents:
@@ -77,6 +79,11 @@ def generer_rapport_groq(date_debut, date_fin):
     """
     donnees_brutes = collecter_donnees_brutes(date_debut, date_fin)
     
+    # Tronquer la chaîne pour éviter l'erreur 413 Payload Too Large
+    donnees_str = str(donnees_brutes)
+    if len(donnees_str) > 6000:
+        donnees_str = donnees_str[:6000] + "... [TRONQUÉ]"
+    
     prompt = f"""
 Agis en tant que Responsable d'Infrastructure Réseau et Rédacteur Administratif expert. Ta tâche est de rédiger un rapport administratif complet, formel et structuré concernant l'état actuel de notre parc informatique et la situation générale du réseau, en te basant sur les données de monitoring que je vais te fournir.
 Le rapport final doit être parfaitement formaté pour une lecture par la direction, clair, objectif, mais suffisamment précis techniquement. Format: Markdown.
@@ -105,10 +112,14 @@ Les opérations de maintenance préventive à planifier (ex: mises à jour de fi
 Ton ton doit être neutre, strictement professionnel et rassurant.
 
 *** DONNÉES BRUTES DU SYSTÈME ***
-{donnees_brutes}
+{donnees_str}
 """
 
     logger.info(f"Appel Groq API pour le rapport du {date_debut} au {date_fin}...")
+    if not GROQ_API_KEY:
+        logger.error("GROQ_API_KEY non configurée pour les rapports.")
+        return "# Erreur de Configuration\nLa clé GROQ_API_KEY est manquante dans les paramètres."
+
     try:
         response = requests.post(
             GROQ_API_URL,

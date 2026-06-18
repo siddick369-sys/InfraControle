@@ -11,6 +11,5 @@ def generer_analyse_executive(contexte):
     )
 
     return appeler_ia(
-        modele="llama3.1:8b",
         prompt=prompt
     )

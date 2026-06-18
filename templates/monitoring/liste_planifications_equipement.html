@@ -2,68 +2,169 @@
 {% block title %}Planifications - {{ equipement.nom }}{% endblock %}
 
 {% block content %}
+<style>
+    /* Premium Dark Theme - Sans Light Mode */
+    body {
+        background-color: #0f172a !important; 
+        color: #f1f5f9 !important; 
+    }
+    .premium-card {
+        background: rgba(30, 41, 59, 0.7); 
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+    }
+    
+    .table-dark-premium {
+        --bs-table-bg: transparent;
+        --bs-table-color: #f1f5f9;
+        color: #f1f5f9;
+        margin-bottom: 0;
+    }
+    .table-dark-premium th {
+        background: rgba(15, 23, 42, 0.6) !important;
+        color: #94a3b8;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 1rem 1.5rem;
+    }
+    .table-dark-premium td {
+        background: transparent !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        vertical-align: middle;
+        padding: 1rem 1.5rem;
+    }
+    .table-dark-premium tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    .table-dark-premium tbody tr:hover {
+        background-color: rgba(255, 255, 255, 0.03) !important;
+    }
+
+    .btn-premium-primary {
+        background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+        border: none;
+        color: white;
+        padding: 0.5rem 1.25rem;
+        border-radius: 8px;
+        font-weight: 600;
+        box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-premium-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(14, 165, 233, 0.6);
+        color: white;
+    }
+    .btn-premium-secondary {
+        background: rgba(51, 65, 85, 0.5);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        color: #cbd5e1;
+        padding: 0.5rem 1.25rem;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    .btn-premium-secondary:hover {
+        background: rgba(71, 85, 105, 0.8);
+        color: white;
+    }
+    
+    .code-glass {
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #38bdf8;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-family: monospace;
+    }
+    .text-muted-premium { color: #94a3b8 !important; }
+</style>
+
 <div class="container py-5">
     
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3>📅 Planifications pour {{ equipement.nom }}</h3>
+    <div class="d-flex justify-content-between align-items-center mb-5">
         <div>
-            <a href="{% url 'detail_equipement' equipement.id %}" class="btn btn-outline-secondary">
-                ⬅️ Retour à l'équipement
+            <h3 class="mb-1 fw-bold" style="color: #f8fafc;">
+                <i class="fas fa-list-alt me-2 text-primary" style="color: #38bdf8 !important;"></i> 
+                Missions Planifiées
+            </h3>
+            <span class="text-muted-premium">Équipement cible : <strong class="text-white">{{ equipement.nom }}</strong></span>
+        </div>
+        <div class="d-flex gap-3">
+            <a href="{% url 'detail_equipement' equipement.id %}" class="btn-premium-secondary text-decoration-none d-flex align-items-center">
+                <i class="fas fa-arrow-left me-2"></i> Retour
             </a>
-            <a href="{% url 'planifier_commande_equipement' equipement.id %}" class="btn btn-primary">
-                ➕ Nouvelle Planification
+            <a href="{% url 'planifier_commande_equipement' equipement.id %}" class="btn-premium-primary text-decoration-none d-flex align-items-center">
+                <i class="fas fa-plus me-2"></i> Nouvelle Mission
             </a>
         </div>
     </div>
 
-    <div class="card shadow-sm">
+    <div class="premium-card">
         <div class="card-body p-0">
             {% if planifications %}
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
+                <table class="table table-dark-premium">
+                    <thead>
                         <tr>
-                            <th>Commande</th>
+                            <th>Script / Commande</th>
                             <th>Date Prévue</th>
-                            <th>Fréquence</th>
+                            <th>Récurrence</th>
                             <th>Statut</th>
-                            <th>Actions</th>
+                            <th class="text-end">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for p in planifications %}
                         <tr>
                             <td>
-                                <code>{{ p.commande.contenu|truncatechars:50 }}</code>
-                                <br>
-                                <small class="text-muted">Par {{ p.cree_par }}</small>
+                                <code class="code-glass">{{ p.commande.contenu|truncatechars:50 }}</code>
+                                <div class="mt-2">
+                                    <small class="text-muted-premium"><i class="fas fa-user-edit me-1"></i> {{ p.cree_par }}</small>
+                                </div>
                             </td>
                             <td>
-                                {% if p.derniere_execution %}
-                                    <span title="Dernière exécution : {{ p.derniere_execution|date:'d/m/Y H:i' }}">
-                                        {{ p.date_execution|date:"d/m/Y H:i" }}
-                                    </span>
-                                {% else %}
-                                    {{ p.date_execution|date:"d/m/Y H:i" }}
-                                {% endif %}
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-dark rounded-circle p-2 me-3 shadow-sm border border-secondary" style="background: rgba(0,0,0,0.5) !important;">
+                                        <i class="far fa-clock text-warning"></i>
+                                    </div>
+                                    <div>
+                                        {% if p.derniere_execution %}
+                                            <span class="d-block" style="color: #cbd5e1;" title="Dernière exécution : {{ p.derniere_execution|date:'d/m/Y H:i' }}">
+                                                {{ p.date_execution|date:"d/m/Y H:i" }}
+                                            </span>
+                                            <small class="text-success" style="font-size: 0.75rem;"><i class="fas fa-check-double me-1"></i> Déjà exécuté</small>
+                                        {% else %}
+                                            <span style="color: #cbd5e1;">{{ p.date_execution|date:"d/m/Y H:i" }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             </td>
                             <td>
-                                {% if p.frequence == 'once' %}Une fois
-                                {% elif p.frequence == 'daily' %}Quotidien
-                                {% elif p.frequence == 'weekly' %}Hebdo
-                                {% else %}{{ p.frequence }}{% endif %}
+                                <span class="badge rounded-pill" style="background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2);">
+                                    {% if p.frequence == 'once' %}Une fois
+                                    {% elif p.frequence == 'daily' %}Quotidien
+                                    {% elif p.frequence == 'weekly' %}Hebdo
+                                    {% else %}{{ p.frequence }}{% endif %}
+                                </span>
                             </td>
                             <td>
-                                {% if p.statut == 'valide' %}<span class="badge bg-success">Valide</span>
-                                {% elif p.statut == 'execute' %}<span class="badge bg-secondary">Exécuté</span>
-                                {% elif p.statut == 'en_attente' %}<span class="badge bg-warning">En attente</span>
-                                {% else %}<span class="badge bg-dark">{{ p.statut }}</span>{% endif %}
+                                {% if p.statut == 'valide' %}<span class="badge rounded-pill bg-success text-white shadow-sm" style="box-shadow: 0 0 10px rgba(25, 135, 84, 0.5) !important;">Actif / Valide</span>
+                                {% elif p.statut == 'execute' %}<span class="badge rounded-pill bg-secondary shadow-sm">Terminé</span>
+                                {% elif p.statut == 'en_attente' %}<span class="badge rounded-pill bg-warning text-dark shadow-sm">En attente</span>
+                                {% else %}<span class="badge rounded-pill bg-dark border border-secondary">{{ p.statut }}</span>{% endif %}
                             </td>
-                            <td>
+                            <td class="text-end">
                                 <form method="post" action="{% url 'supprimer_planification' p.id %}" style="display:inline;">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette planification ?');">
-                                        🗑️ Supprimer
+                                    <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette planification ?');" style="border-radius: 8px;">
+                                        <i class="fas fa-trash-alt me-1"></i> Supprimer
                                     </button>
                                 </form>
                             </td>
@@ -74,10 +175,13 @@
             </div>
             {% else %}
             <div class="text-center py-5">
-                <h5 class="text-muted">Aucune commande planifiée active</h5>
-                <p>Planifiez des maintenances ou requêtes automatisées sur cet équipement.</p>
-                <a href="{% url 'planifier_commande_equipement' equipement.id %}" class="btn btn-primary mt-2">
-                    ➕ Créer une planification
+                <div class="mb-4 text-muted-premium">
+                    <i class="fas fa-satellite-dish fa-4x" style="opacity: 0.3;"></i>
+                </div>
+                <h5 class="text-white">Aucune mission planifiée n'est active</h5>
+                <p class="text-muted-premium mb-4">Automatisez les opérations de maintenance ou d'audit en scriptant une tâche récurrente.</p>
+                <a href="{% url 'planifier_commande_equipement' equipement.id %}" class="btn-premium-primary text-decoration-none">
+                    <i class="fas fa-plus me-2"></i> Créer ma première planification
                 </a>
             </div>
             {% endif %}

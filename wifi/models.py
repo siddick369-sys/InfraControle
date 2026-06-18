@@ -56,6 +56,8 @@ class WifiClient(models.Model):
     
     rssi = models.IntegerField(null=True, blank=True) # dBm
     snr = models.IntegerField(null=True, blank=True) # dB
+    score_confiance = models.IntegerField(default=80, help_text="Score de confiance 0-100 (0=dangereux, 100=sûr)")
+    est_bloque = models.BooleanField(default=False, help_text="Client bloqué par l'admin")
     
     derniere_connexion = models.DateTimeField(auto_now=True)
 

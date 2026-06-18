@@ -19,11 +19,13 @@ def get_ssh_client(equipement):
     try:
         password = equipement.mot_de_passe_ssh
         if not password:
-            raise ValueError("Mot de passe vide")
+            raise ValueError("Mot_de_passe_vide")
     except Exception as e:
-        logger.error(f"[SSH] Erreur dechiffrement pour {ip}: {e}")
-        raise PermissionError("Mot de passe invalide")
-
+        if str(e) == "Mot_de_passe_vide":
+            logger.warning(f"[SSH] Hote ignore ({ip}) : Aucun mot de passe configure.")
+        else:
+            logger.error(f"[SSH] Erreur dechiffrement pour {ip}: {e}")
+        raise PermissionError("Mot de passe invalide ou non renseigne")
     try:
         logging.getLogger("paramiko").setLevel(logging.WARNING)
         client.connect(

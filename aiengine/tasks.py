@@ -32,13 +32,13 @@ def analyser_incident_task(incident_id):
         incident.analyse_ia_en_cours = True
         incident.save(update_fields=["analyse_ia_en_cours"])
 
-        analyse = analyser_incident_ia(incident, provider='ollama')
+        analyse = analyser_incident_ia(incident)
         if not analyse:
             return "Échec analyse IA"
 
         sauvegarder_resultat_ia(incident, analyse)
 
-        return "Analyse IA terminée (Ollama)"
+        return "Analyse IA terminée"
 
     except Exception as e:
         logger.error(f"[IA] Erreur incident {incident_id}: {e}", exc_info=True)

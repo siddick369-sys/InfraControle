@@ -1,4 +1,4 @@
-from django.conf import settings
+from decouple import config
 import requests
 import json
 import logging
@@ -6,92 +6,59 @@ import time
 
 logger = logging.getLogger("ai")
 
-def get_ollama_endpoint():
-    base_url = getattr(settings, "OLLAMA_URL", "http://localhost:11434")
-    if not base_url.endswith("/api/generate"):
-        return f"{base_url.rstrip('/')}/api/generate"
-    return base_url
-
-def _appel_groq(prompt: str, timeout=30):
+def _appel_groq(prompt: str, is_json=False, timeout=45, retries=3):
     """
     Appel spécifique API Groq via REST (llama-3.3-70b-versatile)
     """
-    key = getattr(settings, "GROQ_API_KEY", None)
+    key = config("GROQ_API_KEY", default=None)
     if not key:
-        # Fallback robuste avec la clé fournie par l'utilisateur pour l'analyse d'incidents
-        key = os.environ.get("GROQ_API_KEY", "")
-        logger.info("[IA] Utilisation de la clé Groq depuis variable d'environnement")
+        logger.error("[IA] GROQ_API_KEY non configurée.")
+        return None
     
-    model = getattr(settings, "GROQ_MODEL", "llama-3.3-70b-versatile")
-
-    try:
-        logger.info(f"[IA] Appel Groq ({model})...")
-        response = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json"
-            },
-            json={
+    model = config("GROQ_MODEL", default="llama-3.3-70b-versatile")
+    
+    for attempt in range(retries):
+        try:
+            logger.info(f"[IA] Appel Groq ({model}) - Tentative {attempt+1}/{retries}...")
+            payload = {
                 "model": model,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.2
-            },
-            timeout=timeout
-        )
-        if response.status_code != 200:
-            logger.error(f"[IA] Erreur Groq {response.status_code}: {response.text}")
-            return None
-            
-        res_json = response.json()
-        return res_json["choices"][0]["message"]["content"]
-    except Exception as e:
-        logger.error(f"[IA] Exception lors de l'appel Groq: {e}", exc_info=True)
-        return None
+            }
+            if is_json:
+                payload["response_format"] = {"type": "json_object"}
 
-def appeler_ia(model: str, prompt: str, timeout=600, provider=None):
-    """
-    Appel hybride IA
-    - provider='groq': Force l'appel Groq uniquement
-    - provider='ollama': Force l'appel Ollama uniquement
-    - provider=None: Tente Groq puis Ollama
-    """
-    # 1. Tentative Groq
-    if provider in [None, 'groq']:
-        reponse = _appel_groq(prompt)
-        if reponse:
-            logger.info("[IA] Analyse terminée via Groq")
-            return reponse
-        if provider == 'groq':
-            return None
-
-    # 2. Fallback Ollama
-    if provider in [None, 'ollama']:
-        logger.warning("[IA] Appel Ollama local...")
-        payload = {
-            "model": model,
-            "prompt": prompt,
-            "stream": False,
-        }
-        start_time = time.time()
-        try:
-            url = get_ollama_endpoint()
-            logger.info(f"[IA] Appel Ollama ({model}) sur {url}...")
             response = requests.post(
-                url,
-                json=payload,
+                "https://api.groq.com/openai/v1/chat/completions",
                 headers={
-                    "content-Type": "application/json"
+                    "Authorization": f"Bearer {key}",
+                    "Content-Type": "application/json"
                 },
+                json=payload,
                 timeout=timeout
             )
-            response.raise_for_status()
-            duration = time.time() - start_time
-            logger.info(f"[IA] Réponse Ollama reçue en {duration:.2f}s")
-            return response.json()["response"]
-
-        except Exception as e:
-            logger.error("[IA] Échec Ollama", exc_info=True)
+            if response.status_code == 200:
+                res_json = response.json()
+                return res_json["choices"][0]["message"]["content"]
+            
+            logger.error(f"[IA] Erreur Groq {response.status_code}: {response.text}")
+            if response.status_code >= 500:
+                time.sleep(2)
+                continue
             return None
-    
+            
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            if attempt < retries - 1:
+                time.sleep(1)
+                continue
+            return None
+        except Exception as e:
+            logger.error(f"[IA] Exception inattendue: {e}")
+            return None
     return None
+
+def appeler_ia(prompt: str, is_json=False, timeout=45):
+    """
+    Appel direct à l'IA Oracle via Groq.
+    """
+    return _appel_groq(prompt, is_json=is_json, timeout=timeout)

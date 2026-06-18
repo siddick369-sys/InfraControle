@@ -7,10 +7,17 @@
 <div class="container-fluid py-4 bg-dark text-light min-vh-100" style="background: radial-gradient(circle at top right, #1e293b, #0f172a);">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold text-info mb-0"><i class="fas fa-wifi me-2"></i> WiFi Command Center</h2>
-            <p class="text-muted small mb-0">Surveillance en temps réel des infrastructures sans fil</p>
+            <h2 class="fw-bold text-info mb-0" style="text-shadow: 0 0 15px rgba(14,165,233,0.5);"><i class="fas fa-shield-halved me-2"></i> Bouclier Sécurité WiFi Personnel</h2>
+            <p class="text-muted small mb-0">Détection d'intrusion en temps réel et protection anti-hack pour votre Box Internet</p>
         </div>
         <div class="text-end">
+            <!-- Day/Night Toggle -->
+            <button onclick="toggleDayNight()" class="btn btn-outline-secondary px-3 py-2 me-2" id="btn-daynight" title="Changer le mode">
+                <i class="fas fa-sun" id="daynight-icon"></i>
+            </button>
+            <button onclick="triggerAttack()" class="btn btn-danger px-4 py-2 me-3 shadow" id="btn-attack">
+                <i class="fas fa-bolt me-2"></i> Simuler une Attaque
+            </button>
             <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2">
                 <i class="fas fa-circle-notch fa-spin me-2"></i> Live Monitoring
             </span>
@@ -25,13 +32,13 @@
                     <div class="d-flex justify-content-between">
                         <div>
                             <p class="text-muted small text-uppercase fw-bold mb-1">Bornes (AP)</p>
-                            <h3 class="mb-0 text-white">{{ total_aps }}</h3>
+                            <h3 class="mb-0 text-white" id="stat-total-aps">{{ total_aps }}</h3>
                         </div>
                         <div class="text-primary fs-2 opacity-50"><i class="fas fa-broadcast-tower"></i></div>
                     </div>
                     <div class="mt-2 small text-muted">
-                        <span class="text-success"><i class="fas fa-arrow-up me-1"></i> {{ aps_up }} UP</span> | 
-                        <span class="text-danger"><i class="fas fa-arrow-down me-1"></i> {{ aps_down }} DOWN</span>
+                        <span class="text-success" id="stat-aps-up"><i class="fas fa-arrow-up me-1"></i> {{ aps_up }} UP</span> | 
+                        <span class="text-danger" id="stat-aps-down"><i class="fas fa-arrow-down me-1"></i> {{ aps_down }} DOWN</span>
                     </div>
                 </div>
             </div>
@@ -42,7 +49,7 @@
                     <div class="d-flex justify-content-between">
                         <div>
                             <p class="text-muted small text-uppercase fw-bold mb-1">Clients Connectés</p>
-                            <h3 class="mb-0 text-white">{{ total_clients }}</h3>
+                            <h3 class="mb-0 text-white" id="stat-total-clients">{{ total_clients }}</h3>
                         </div>
                         <div class="text-info fs-2 opacity-50"><i class="fas fa-users-viewfinder"></i></div>
                     </div>
@@ -53,15 +60,18 @@
         <div class="col-md-3">
             <div class="card bg-dark border-secondary shadow-sm">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <p class="text-muted small text-uppercase fw-bold mb-1">Trafic Global</p>
-                            <h3 class="mb-0 text-white">{{ total_bandwidth_mb }} MB</h3>
+                            <p class="text-muted small text-uppercase fw-bold mb-1">Niveau de Sécurité</p>
+                            <h3 class="mb-0" id="stat-security-score" style="color: #10b981;">100% SECURE</h3>
                         </div>
-                        <div class="text-warning fs-2 opacity-50"><i class="fas fa-chart-line"></i></div>
-                    </div>
-                    <div class="progress mt-2" style="height: 4px; background: rgba(255,193,7,0.1);">
-                        <div class="progress-bar bg-warning" style="width: 45%;"></div>
+                        <div class="position-relative" style="width: 55px; height: 55px;">
+                            <svg class="circular-chart" viewBox="0 0 36 36" id="security-svg">
+                                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="3" />
+                                <path id="security-stroke" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" style="transition: stroke-dasharray 1s ease-out, stroke 0.5s;" />
+                            </svg>
+                            <i class="fas fa-shield-check position-absolute top-50 start-50 translate-middle" id="security-icon" style="color: #10b981; font-size: 1.1rem;"></i>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -105,7 +115,7 @@
                                     <th>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody class="border-secondary">
+                            <tbody class="border-secondary" id="aps-table-body">
                                 {% for ap in aps_list %}
                                 <tr>
                                     <td class="ps-4">
@@ -150,6 +160,32 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Live Clients Table -->
+            <div class="card bg-dark border-secondary shadow-sm mt-4">
+                <div class="card-header border-secondary bg-transparent py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-microchip me-2"></i> Inspection Pare-feu Client</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-dark table-hover mb-0 align-middle">
+                            <thead class="text-muted small text-uppercase border-secondary sticky-top bg-dark">
+                                <tr>
+                                    <th class="ps-4">Appareil & MAC</th>
+                                    <th>Signal (RSSI)</th>
+                                    <th>Niveau de Confiance</th>
+                                    <th class="text-end pe-4">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="border-secondary" id="clients-table-body">
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted p-4"><i class="fas fa-spinner fa-spin me-2"></i> Scan environnemental en cours...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Lateral Column -->
@@ -164,7 +200,22 @@
                 </div>
             </div>
 
-            <!-- Recent Alerts -->
+            <!-- Sonar Radar -->
+            <div class="card bg-dark border-secondary shadow-sm mb-4">
+                <div class="card-header border-secondary bg-transparent py-3 text-center">
+                    <h5 class="mb-0"><i class="fas fa-wifi me-2 text-success" id="radar-title-icon"></i> Détection Radar</h5>
+                </div>
+                <div class="card-body d-flex justify-content-center position-relative overflow-hidden" style="height: 280px;">
+                    <div class="radar-container position-absolute top-50 start-50 translate-middle">
+                        <div class="radar-core"></div>
+                        <div class="radar-sweep" id="radar-sweep-blade"></div>
+                        <div class="radar-ring r1"></div>
+                        <div class="radar-ring r2"></div>
+                        <div class="radar-ring r3"></div>
+                        <div id="radar-blips"></div>
+                    </div>
+                </div>
+            </div>
             <div class="card bg-dark border-secondary shadow-sm">
                 <div class="card-header border-secondary bg-transparent py-3">
                     <h5 class="mb-0"><i class="fas fa-bell me-2 text-danger"></i> Alertes Récentes</h5>
@@ -202,18 +253,73 @@
         50% { opacity: 0.5; }
         100% { opacity: 1; }
     }
+    
+    /* RADAR CSS */
+    .radar-container {
+        width: 250px; height: 250px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(16,185,129,0.1) 0%, rgba(0,0,0,0.5) 100%);
+        border: 2px solid rgba(16,185,129,0.3); overflow: hidden; position: relative;
+    }
+    .radar-core {
+        width: 10px; height: 10px; background: #10b981; border-radius: 50%;
+        position: absolute; top: calc(50% - 5px); left: calc(50% - 5px);
+        box-shadow: 0 0 10px #10b981; z-index: 10;
+    }
+    .radar-ring {
+        position: absolute; border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        border: 1px dashed rgba(16,185,129,0.2);
+    }
+    .radar-ring.r1 { width: 80px; height: 80px; }
+    .radar-ring.r2 { width: 160px; height: 160px; }
+    .radar-ring.r3 { width: 240px; height: 240px; }
+    .radar-sweep {
+        width: 50%; height: 50%; position: absolute; bottom: 50%; left: 50%;
+        background: conic-gradient(from 0deg, rgba(16,185,129,0) 0%, rgba(16,185,129,0.6) 90%);
+        transform-origin: bottom left; border-right: 2px solid #10b981;
+        animation: radarSpin 3s linear infinite; z-index: 5;
+    }
+    @keyframes radarSpin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .radar-blip {
+        width: 8px; height: 8px; border-radius: 50%; position: absolute; z-index: 8;
+        transform: translate(-50%, -50%); opacity: 0;
+        animation: blipFade 3s ease-in-out infinite;
+    }
+    @keyframes blipFade {
+        0% { opacity: 1; box-shadow: 0 0 10px var(--blip-color); transform: scale(1) translate(-50%, -50%); }
+        50% { opacity: 0.2; box-shadow: 0 0 20px var(--blip-color); transform: scale(1.5) translate(-30%, -30%); }
+        100% { opacity: 0; transform: scale(1) translate(-50%, -50%); }
+    }
 </style>
+
+<!-- Toast Container pour menaces -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
+    <div id="securityToast" class="toast align-items-center text-white border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body d-flex align-items-center p-3">
+                <i class="fas fa-info-circle fs-2 me-3" id="toast-icon"></i>
+                <div class="flex-grow-1">
+                    <strong class="me-auto fs-6 font-monospace" id="toast-title">Alerte</strong><br>
+                    <span id="toast-msg" class="small"></span>
+                </div>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('freqChart').getContext('2d');
-        new Chart(ctx, {
+        const freqChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: ['2.4 GHz', '5 GHz'],
                 datasets: [{
-                    data: [35, 65], // Données de test
+                    data: [{{ c_2g|default:1 }}, {{ c_5g|default:1 }}],
                     backgroundColor: ['#f59e0b', '#0ea5e9'],
                     borderWidth: 0,
                     hoverOffset: 10
@@ -231,6 +337,302 @@
                 cutout: '75%'
             }
         });
+
+        // Fonction AJAX de mise à jour
+        async function updateDashboard() {
+            try {
+                const response = await fetch("{% url 'wifi:api_stats' %}");
+                const data = await response.json();
+
+                // 1. Mettre à jour les compteurs
+                document.getElementById('stat-total-aps').textContent = data.total_aps;
+                document.getElementById('stat-aps-up').innerHTML = `<i class="fas fa-arrow-up me-1"></i> ${data.aps_up} UP`;
+                document.getElementById('stat-aps-down').innerHTML = `<i class="fas fa-arrow-down me-1"></i> ${data.aps_down} DOWN`;
+                document.getElementById('stat-total-clients').textContent = data.total_clients;
+                
+                // Si la sévérité est rouge/hack on baisse le score
+                const hasHackAlert = data.alerts.some(a => a.type.includes("BRUTE_FORCE") || a.type.includes("ROGUE_AP") || a.type.includes("ARP_POISONING") || a.type.includes("DDOS_WIFI"));
+                
+                const scoreCard = document.getElementById('stat-security-score');
+                const svgStroke = document.getElementById('security-stroke');
+                const svgIcon = document.getElementById('security-icon');
+                const radarTitle = document.getElementById('radar-title-icon');
+                const radarSweep = document.getElementById('radar-sweep-blade');
+                const radarContainer = document.querySelector('.radar-container');
+                
+                if (hasHackAlert) {
+                    scoreCard.textContent = "ALERTE INTRUSION";
+                    scoreCard.style.color = "#ef4444";
+                    scoreCard.classList.add("pulse-text");
+                    svgStroke.setAttribute('stroke', '#ef4444');
+                    svgStroke.setAttribute('stroke-dasharray', '15, 100'); // 15% secure
+                    svgIcon.className = "fas fa-shield-virus position-absolute top-50 start-50 translate-middle";
+                    svgIcon.style.color = "#ef4444";
+                    
+                    // Radar s'énerve
+                    radarTitle.className = "fas fa-radiation fa-spin me-2 text-danger";
+                    radarContainer.style.borderColor = "rgba(239, 68, 68, 0.5)";
+                    radarSweep.style.background = "conic-gradient(from 0deg, rgba(239,68,68,0) 0%, rgba(239,68,68,0.7) 90%)";
+                    radarSweep.style.borderRightColor = "#ef4444";
+                } else {
+                    scoreCard.textContent = "100% SECURE";
+                    scoreCard.style.color = "#10b981";
+                    scoreCard.classList.remove("pulse-text");
+                    svgStroke.setAttribute('stroke', '#10b981');
+                    svgStroke.setAttribute('stroke-dasharray', '100, 100');
+                    svgIcon.className = "fas fa-shield-check position-absolute top-50 start-50 translate-middle";
+                    svgIcon.style.color = "#10b981";
+                    
+                    // Radar normal
+                    radarTitle.className = "fas fa-radar me-2 text-success";
+                    radarContainer.style.borderColor = "rgba(16,185,129,0.3)";
+                    radarSweep.style.background = "conic-gradient(from 0deg, rgba(16,185,129,0) 0%, rgba(16,185,129,0.6) 90%)";
+                    radarSweep.style.borderRightColor = "#10b981";
+                }
+
+                // 2. Mettre à jour le tableau
+                const tbody = document.getElementById('aps-table-body');
+                tbody.innerHTML = '';
+                data.aps.forEach(ap => {
+                    const row = `
+                        <tr>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-circle me-3">
+                                        <i class="fas fa-satellite-dish"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold">${ap.nom}</div>
+                                        <div class="text-muted smaller">${ap.ip}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge ${ap.statut === 'up' ? 'bg-success-subtle text-success border-success' : 'bg-danger-subtle text-danger border-danger'} border px-2">
+                                    ${ap.statut === 'up' ? 'ONLINE' : 'OFFLINE'}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="progress flex-grow-1" style="height: 6px; background: rgba(255,255,255,0.05);">
+                                        <div class="progress-bar ${ap.cpu > 80 ? 'bg-danger' : (ap.cpu > 50 ? 'bg-warning' : 'bg-info')}" 
+                                             style="width: ${ap.cpu}%;"></div>
+                                    </div>
+                                    <span class="ms-2 smaller text-muted">${ap.cpu}%</span>
+                                </div>
+                            </td>
+                            <td>
+                                <i class="fas fa-wifi me-1 text-info small"></i> ${ap.clients}
+                            </td>
+                            <td>
+                                <a href="/wifi/ap/${ap.id}/" class="btn btn-sm btn-outline-info">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.insertAdjacentHTML('beforeend', row);
+                });
+
+                // 3. Mettre à jour le graphique (Fréquences)
+                freqChart.data.datasets[0].data = [data.c_2g, data.c_5g];
+                freqChart.update();
+
+                // 3.5. Radar Sonar Blips
+                const blipsContainer = document.getElementById('radar-blips');
+                blipsContainer.innerHTML = '';
+                const rc = 125; // center of 250px radar
+                if(data.clients) {
+                    let hashMapSeed = 10;
+                    data.clients.forEach(c => {
+                        // Position par distance (RSSI -30 = proche = 20px, RSSI -90 = loin = 110px)
+                        let dist = (100 + c.rssi + 15) * 1.5; 
+                        if(dist < 15) dist = 25; if(dist > 120) dist = 115;
+                        
+                        // Pseudo-angle fixe par MAC adresse pour eviter qu'ils ne sautent partout
+                        let strToNum = [...c.mac].reduce((a,b) => a + b.charCodeAt(0), 0) % 360;
+                        let angle = strToNum * (Math.PI / 180);
+                        
+                        let bx = rc + Math.cos(angle) * dist;
+                        let by = rc + Math.sin(angle) * dist;
+                        let color = c.score <= 10 ? '#ef4444' : '#10b981';
+                        
+                        blipsContainer.innerHTML += `<div class="radar-blip" style="top:${by}px; left:${bx}px; background:${color}; --blip-color:${color}; animation-delay: ${(strToNum%30)/10}s;"></div>`;
+                    });
+                }
+
+                // 4. Mettre à jour la table des Clients Firewall
+                const clientBody = document.getElementById('clients-table-body');
+                clientBody.innerHTML = '';
+                if(data.clients && data.clients.length > 0) {
+                    data.clients.forEach(c => {
+                        let scoreColor = c.score > 80 ? 'success' : (c.score > 40 ? 'warning' : 'danger');
+                        let isHacker = c.score <= 10;
+                        let rowBaseClass = isHacker ? 'bg-danger bg-opacity-10 border-danger' : '';
+                        
+                        // Calcul barres WiFi
+                        let wifiBars = 1; let wifiColor = 'danger';
+                        if(c.rssi > -50) { wifiBars = 4; wifiColor = 'success'; }
+                        else if(c.rssi > -70) { wifiBars = 3; wifiColor = 'success'; }
+                        else if(c.rssi > -80) { wifiBars = 2; wifiColor = 'warning'; }
+
+                        const tr = `
+                            <tr class="${rowBaseClass}">
+                                <td class="ps-4">
+                                    <div class="fw-bold ${isHacker ? 'text-danger pulse-text' : 'text-light'}">
+                                        <i class="fas fa-${isHacker ? 'skull-crossbones' : 'mobile-screen'} me-2"></i>${c.device}
+                                    </div>
+                                    <div class="text-muted smaller font-monospace">${c.mac} | ${c.ip}</div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-signal text-${wifiColor} me-2"></i>
+                                        <span class="text-muted smaller">${c.rssi} dBm</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center mb-1">
+                                        <span class="text-${scoreColor} fw-bold" style="min-width:40px;">${c.score}%</span>
+                                        <div class="progress flex-grow-1 ms-2" style="height: 4px; background: rgba(255,255,255,0.05);">
+                                            <div class="progress-bar bg-${scoreColor}" style="width: ${c.score}%;"></div>
+                                        </div>
+                                    </div>
+                                    ${isHacker ? '<div class="smaller text-danger"><i class="fas fa-radiation fa-spin me-1"></i> Risque Critique</div>' : ''}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <button onclick="blockClient(${c.id})" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-ban me-1"></i> Bloquer
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                        clientBody.insertAdjacentHTML('beforeend', tr);
+                    });
+                } else {
+                    clientBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted p-4">Aucun client actif.</td></tr>';
+                }
+
+            } catch (error) {
+                console.error("Erreur de rafraîchissement WiFi:", error);
+            }
+        }
+
+        // Functions Globals UI
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        window.triggerAttack = async function() {
+            const btn = document.getElementById('btn-attack');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Injection réseau...';
+            btn.disabled = true;
+            try {
+                const res = await fetch("{% url 'wifi:trigger_attack' %}", {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                });
+                const data = await res.json();
+                if(data.ok) {
+                    showToast('INJECTION RÉUSSIE', `L'attaquant (${data.mac}) a compromis la borne ${data.ap}!`, 'danger');
+                    updateDashboard();
+                }
+            } catch(e) { console.error(e); }
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-bolt me-2"></i> Simuler une Attaque';
+                btn.disabled = false;
+            }, 2000);
+        }
+
+        window.blockClient = async function(clientId) {
+            try {
+                const res = await fetch("{% url 'wifi:block_client' %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({client_id: clientId})
+                });
+                const data = await res.json();
+                if(data.ok) {
+                    showToast('MENACE ÉLIMINÉE', `L'appareil ${data.mac} a été déconnecté de force par le pare-feu.`, 'success');
+                    updateDashboard();
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        window.showToast = function(title, msg, type) {
+            const toastEl = document.getElementById('securityToast');
+            const toast = new bootstrap.Toast(toastEl, {delay: 5000});
+            
+            toastEl.className = `toast align-items-center text-white border-0 shadow-lg bg-${type}`;
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-msg').innerText = msg;
+            
+            const icon = document.getElementById('toast-icon');
+            icon.className = `fas fa-${type === 'danger' ? 'radiation fa-spin' : 'check-circle'} fs-2 me-3`;
+            
+            // Son FX
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                osc.type = type === 'danger' ? 'sawtooth' : 'sine';
+                osc.frequency.setValueAtTime(type === 'danger' ? 200 : 800, ctx.currentTime);
+                osc.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.2);
+            } catch(e) {}
+            
+            toast.show();
+        }
+
+        // Cycle de rafraîchissement toutes les 5 secondes
+        updateDashboard(); // Premier appel immédiat
+        setInterval(updateDashboard, 5000);
+        
+        // ── Mode Jour/Nuit ────────────────────────────
+        const DASH_ROOT = document.querySelector('.container-fluid.py-4');
+        window.toggleDayNight = function() {
+            const isDark = localStorage.getItem('wifi-dark-mode') !== 'light';
+            if (isDark) {
+                // → Passer en Mode Jour
+                DASH_ROOT.style.background = 'linear-gradient(135deg, #f8fafc, #e2e8f0)';
+                DASH_ROOT.style.color = '#1e293b';
+                document.querySelectorAll('.card.bg-dark').forEach(c => {
+                    c.classList.replace('bg-dark', 'bg-white');
+                    c.style.color = '#1e293b';
+                });
+                document.querySelectorAll('.table-dark').forEach(t => t.classList.replace('table-dark', 'table-light'));
+                document.querySelectorAll('.text-muted').forEach(t => t.style.color = '#475569');
+                document.getElementById('daynight-icon').className = 'fas fa-moon';
+                localStorage.setItem('wifi-dark-mode', 'light');
+            } else {
+                // → Passer en Mode Nuit
+                DASH_ROOT.style.background = 'radial-gradient(circle at top right, #1e293b, #0f172a)';
+                DASH_ROOT.style.color = '#f1f5f9';
+                document.querySelectorAll('.card.bg-white').forEach(c => {
+                    c.classList.replace('bg-white', 'bg-dark');
+                    c.style.color = '';
+                });
+                document.querySelectorAll('.table-light').forEach(t => t.classList.replace('table-light', 'table-dark'));
+                document.querySelectorAll('.text-muted').forEach(t => t.style.color = '');
+                document.getElementById('daynight-icon').className = 'fas fa-sun';
+                localStorage.setItem('wifi-dark-mode', 'dark');
+            }
+        }
+        // Restaurer le mode au chargement
+        if (localStorage.getItem('wifi-dark-mode') === 'light') window.toggleDayNight();
     });
 </script>
 {% endblock %}

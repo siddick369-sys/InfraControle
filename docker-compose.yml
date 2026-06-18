@@ -41,7 +41,7 @@ services:
     volumes:
       - infracontol_pg_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5434:5432"
     restart: unless-stopped
     networks:
       - infranet
@@ -53,7 +53,7 @@ services:
     image: redis:7-alpine
     container_name: infracontrol-redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
     restart: unless-stopped
@@ -103,19 +103,6 @@ services:
     networks:
       - infranet
 
-#  # ==========================================================
-#  # 🤖 OLLAMA (IA Locale)
-#  # ==========================================================
-#  ollama:
-#    image: ollama/ollama
-#    container_name: infracontrol-ollama
-#    ports:
-#      - "11434:11434"
-#    volumes:
-#      - ollama_data:/root/.ollama
-#    restart: unless-stopped
-#    networks:
-#      - infranet
 
   # ==========================================================
   # 📊 PROMETHEUS (Métriques)
@@ -211,6 +198,7 @@ services:
       - '--path.sysfs=/host/sys'
       - '--path.rootfs=/rootfs'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--no-collector.nfsd'
     restart: unless-stopped
     networks:
       - infranet
@@ -223,7 +211,6 @@ volumes:
   redis_data:
   grafana_data:
   prometheus_data:
-  ollama_data:
   static_files:
   media_files:
 

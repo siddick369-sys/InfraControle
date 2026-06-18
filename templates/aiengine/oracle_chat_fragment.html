@@ -1,0 +1,38 @@
+<div id="oracle-container">
+    <div id="oracle-window">
+        <div class="oracle-header">
+            <div class="title">
+                <i class="fas fa-brain"></i> ORACLE AI
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button id="oracle-split-toggle" class="close-btn" title="Mode Écran Scindé"><i class="fas fa-columns"></i></button>
+                <button id="oracle-matrix-toggle" class="close-btn" title="Mode Hacker" style="color:var(--accent-cyan);"><i class="fas fa-terminal"></i></button>
+                <button id="oracle-voice-toggle" class="close-btn" title="Activer/Désactiver Voix" style="color:#FFF;"><i class="fas fa-volume-mute"></i></button>
+                <button id="oracle-close" class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div id="oracle-messages">
+            <div class="message oracle">
+                Bonjour ! Je suis l'Oracle. Comment puis-je vous aider avec l'infrastructure aujourd'hui ?
+            </div>
+            <div id="oracle-typing" class="typing-indicator">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+        </div>
+        <div id="oracle-visualizer" class="visualizer-wave"></div>
+        <div class="oracle-footer">
+            {% csrf_token %}
+            <button id="oracle-mic" class="oracle-send" style="background:transparent; color:#0ea5e9; border:1px solid #0ea5e9;" title="Dicter (Vocal)"><i class="fas fa-microphone"></i></button>
+            <input type="text" id="oracle-input" class="oracle-input" placeholder="Posez une question...">
+            <button id="oracle-send" class="oracle-send">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+    <button id="oracle-fab">
+        <div class="glow"></div>
+        <i class="fas fa-brain fa-pulse" style="font-size: 28px; text-shadow: 0 0 10px #fff;"></i>
+    </button>
+</div>

@@ -2,44 +2,96 @@
 {% block title %}Détail équipement - {{ equipement.nom }}{% endblock %}
 
 {% block content %}
+<style>
+    body {
+        background-color: #0f172a !important; 
+        color: #f1f5f9 !important; 
+    }
+    .premium-card {
+        background: rgba(30, 41, 59, 0.7); 
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        margin-bottom: 2rem;
+    }
+    .premium-card h5 {
+        color: #38bdf8;
+        font-weight: 600;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .table-dark-premium {
+        --bs-table-bg: transparent;
+        --bs-table-color: #cbd5e1;
+        --bs-table-border-color: rgba(255, 255, 255, 0.05);
+        color: #cbd5e1;
+    }
+    .table-dark-premium th {
+        color: #94a3b8;
+        font-weight: 500;
+    }
+    .table-dark-premium td {
+        vertical-align: middle;
+    }
+    .list-group-item-dark {
+        background: transparent;
+        border-color: rgba(255, 255, 255, 0.05);
+        color: #cbd5e1;
+    }
+    .text-muted { color: #94a3b8 !important; }
+</style>
+
 <div class="container py-5">
 
     <!-- 🔧 Titre -->
-    <div class="text-center mb-4">
-        <h3>🔧 {{ equipement.nom }}</h3>
-        <div id="statut_equipement">
-            <span class="badge bg-secondary">{{ equipement.statut }}</span>
-
+    <div class="d-flex justify-content-between align-items-start mb-5">
+        <div>
+            <h3 class="fw-bold mb-2 text-white">
+                <i class="fas fa-server text-info me-2"></i> {{ equipement.nom }}
+            </h3>
+            <div id="statut_equipement" class="d-inline-block me-2">
+                <span class="badge bg-secondary">{{ equipement.statut }}</span>
+            </div>
+            <small class="text-muted">
+                Dernier check: <span id="last_check">-</span>
+            </small>
         </div>
-        <small class="text-muted">
-            Dernière vérification : <span id="last_check">-</span>
-        </small>
+        <div class="d-flex gap-2">
+            <form method="post" action="{% url 'mettre_en_maintenance' equipement.id %}">
+                {% csrf_token %}
+                <button class="btn btn-warning shadow-sm">
+                    <i class="fas fa-tools me-1"></i> Maintenance
+                </button>
+            </form>
+            <form method="post" action="{% url 'equipement_reparer' equipement.id %}">
+                {% csrf_token %}
+                <button class="btn btn-success shadow-sm">
+                    <i class="fas fa-check-circle me-1"></i> Réparé
+                </button>
+            </form>
+            {% if equipement.alertes_email_active %}
+            <a href="{% url 'toggle_alertes_email' equipement.id %}" class="btn btn-outline-danger shadow-sm">
+                <i class="fas fa-bell-slash me-1"></i> Alertes OFF
+            </a>
+            {% else %}
+            <a href="{% url 'toggle_alertes_email' equipement.id %}" class="btn btn-outline-success shadow-sm">
+                <i class="fas fa-bell me-1"></i> Alertes ON
+            </a>
+            {% endif %}
+        </div>
     </div>
-    <form method="post" action="{% url 'mettre_en_maintenance' equipement.id %}">
-        {% csrf_token %}
-        <button class="btn btn-warning w-100 mt-2">
-            🛠 Mettre en maintenance
-        </button>
-    </form>
-    <form method="post" action="{% url 'equipement_reparer' equipement.id %}">
-        {% csrf_token %}
-        <button class="btn btn-success w-100 mt-3">
-            🔧 Équipement réparé
-        </button>
-    </form>
-    {% if equipement.alertes_email_active %}
-    <a href="{% url 'toggle_alertes_email' equipement.id %}" class="btn btn-sm btn-outline-danger">
-        🔕 Arrêter les alertes email
-    </a>
-    {% else %}
-    <a href="{% url 'toggle_alertes_email' equipement.id %}" class="btn btn-sm btn-outline-success">
-        🔔 Réactiver les alertes email
-    </a>
-    {% endif %}
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
 
-    <canvas id="metricsChart" height="120"></canvas>
+    <!-- 📊 Graphique Métriques Temps Réel -->
+    <div class="premium-card p-4">
+        <h5><i class="fas fa-chart-line me-2"></i>Métriques Temps Réel</h5>
+        <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 1rem;">
+            <canvas id="metricsChart" height="120"></canvas>
+        </div>
 
     <script>
         fetch("{% url 'equipement_metrics_api' equipement.id %}")
@@ -108,23 +160,24 @@
                     },
                     options: {
                         responsive: true,
+                        color: "#94a3b8",
                         plugins: {
+                            legend: { labels: { color: "#cbd5e1" } },
                             zoom: {
-                                zoom: {
-                                    wheel: { enabled: true },
-                                    pinch: { enabled: true },
-                                    mode: 'x'
-                                },
-                                pan: {
-                                    enabled: true,
-                                    mode: 'x'
-                                }
+                                zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' },
+                                pan: { enabled: true, mode: 'x' }
                             }
                         },
                         scales: {
                             y: {
                                 beginAtZero: true,
-                                max: 100
+                                max: 100,
+                                grid: { color: "rgba(255,255,255,0.05)" },
+                                ticks: { color: "#94a3b8" }
+                            },
+                            x: {
+                                grid: { color: "rgba(255,255,255,0.05)" },
+                                ticks: { color: "#94a3b8" }
                             }
                         }
                     },
@@ -132,27 +185,29 @@
                 });
             });
     </script>
+    </div> <!-- /premium-card chart -->
+
 
     <!-- 📋 Infos générales -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <table class="table table-bordered mb-0">
+    <div class="premium-card p-4">
+        <div class="card-body p-0">
+            <table class="table table-dark-premium mb-0">
                 <tbody>
                     <tr>
-                        <th>Adresse IP</th>
-                        <td>{{ equipement.adresse_ip }}</td>
+                        <th style="width: 30%">Adresse IP</th>
+                        <td class="text-white font-monospace">{{ equipement.adresse_ip }}</td>
                     </tr>
                     <tr>
                         <th>Type</th>
-                        <td>{{ equipement.type_equipement|default:"Inconnu" }}</td>
+                        <td class="text-white">{{ equipement.type_equipement|default:"Inconnu" }}</td>
                     </tr>
                     <tr>
                         <th>Utilisateur SSH</th>
-                        <td>{{ equipement.utilisateur_ssh }}</td>
+                        <td class="text-white">{{ equipement.utilisateur_ssh }}</td>
                     </tr>
                     <tr>
                         <th>Port SSH</th>
-                        <td>{{ equipement.port_ssh }}</td>
+                        <td class="text-white">{{ equipement.port_ssh }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -160,154 +215,129 @@
     </div>
 
     <!-- ❤️ Santé globale -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h5>❤️ Santé globale</h5>
-            <div class="progress mb-2">
-                <div id="health_bar" class="progress-bar bg-success" style="width: {{ stat.health_score|default:0 }}%">
-                    {{ stat.health_score|default:0 }} %
+    <div class="premium-card p-4">
+        <h5><i class="fas fa-heartbeat me-2 text-danger"></i>Score de Santé Global</h5>
+        <div class="card-body p-0 mt-3">
+            <div class="progress" style="height: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; overflow: hidden;">
+                <div id="health_bar" class="progress-bar bg-success" style="width: {{ stat.health_score|default:0 }}%; box-shadow: 0 0 10px rgba(25,135,84,0.6);">
                 </div>
             </div>
+            <div class="text-end mt-2 text-success fw-bold">{{ stat.health_score|default:0 }} %</div>
         </div>
     </div>
     <!-- 📊 MÉTRIQUES SYSTÈME -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h5 class="mb-4">📊 Métriques système</h5>
+    <div class="premium-card p-4">
+        <div>
+            <h5 class="mb-4"><i class="fas fa-tachometer-alt me-2"></i>Métriques Système</h5>
 
             {% if metrics %}
             {% for m in metrics %}
             <div class="mb-3">
-                <div class="d-flex justify-content-between">
-                    <strong>{{ m.label }}</strong>
-                    <span>
-                        {{ m.value|floatformat:1 }} {{ m.unit }}
-                    </span>
+                <div class="d-flex justify-content-between mb-1">
+                    <strong style="color: #cbd5e1;">{{ m.label }}</strong>
+                    <span style="color: #94a3b8;">{{ m.value|floatformat:1 }} {{ m.unit }}</span>
                 </div>
-
-                <div class="progress" style="height: 10px;">
-                    <div class="progress-bar bg-{{ m.color }}" role="progressbar" style="width: {{ m.value|default:0 }}%" aria-valuenow="{{ m.value }}" aria-valuemin="0" aria-valuemax="100">
+                <div class="progress" style="height: 8px; background: rgba(0,0,0,0.3); border-radius: 6px;">
+                    <div class="progress-bar bg-{{ m.color }}" role="progressbar"
+                         style="width: {{ m.value|default:0 }}%; border-radius: 6px;"
+                         aria-valuenow="{{ m.value }}" aria-valuemin="0" aria-valuemax="100">
                     </div>
                 </div>
             </div>
             {% endfor %}
             {% else %}
             <p class="text-muted text-center">
+                <i class="fas fa-satellite-dish fa-2x mb-2 d-block" style="opacity: 0.4;"></i>
                 Aucune métrique disponible pour cet équipement.
             </p>
             {% endif %}
         </div>
     </div>
     <!-- 📋 DÉTAIL TECHNIQUE -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h5 class="mb-3">📋 Détails techniques</h5>
+    <div class="premium-card p-4">
+        <h5><i class="fas fa-sliders-h me-2"></i>Détails Techniques</h5>
+        {% if stat %}
+        <div class="row g-3">
 
-            {% if stat %}
-            <table class="table table-sm table-bordered">
-                <tbody>
-                    <tr>
-                        <th>Ping</th>
-                        <td>{{ stat.ping_ms|default:"-" }} ms</td>
-                    </tr>
-                    <tr>
-                        <th>Jitter</th>
-                        <td>{{ stat.jitter_ms|default:"-" }} ms</td>
-                    </tr>
-                    <tr>
-                        <th>Packet loss</th>
-                        <td>{{ stat.packet_loss|default:"0" }} %</td>
-                    </tr>
-                    <tr>
-                        <th>CPU Load (1m)</th>
-                        <td>{{ stat.cpu_load_1m }}</td>
-                    </tr>
-                    <tr>
-                        <th>CPU Load (5m)</th>
-                        <td>{{ stat.cpu_load_5m }}</td>
-                    </tr>
-                    <tr>
-                        <th>RAM utilisée</th>
-                        <td>{{ stat.ram_used_mb }} / {{ stat.ram_total_mb }} MB</td>
-                    </tr>
-                    <tr>
-                        <th>Inodes</th>
-                        <td>{{ stat.inode_usage }} %</td>
-                    </tr>
-                    <tr>
-                        <th>Erreurs RX</th>
-                        <td>{{ stat.errors_in }}</td>
-                    </tr>
-                    <tr>
-                        <th>Erreurs TX</th>
-                        <td>{{ stat.errors_out }}</td>
-                    </tr>
-                    <tr>
-                        <th>Drops RX</th>
-                        <td>{{ stat.drops_in }}</td>
-                    </tr>
-                    <tr>
-                        <th>Drops TX</th>
-                        <td>{{ stat.drops_out }}</td>
-                    </tr>
-                    <tr>
-                        <th>Score santé</th>
-                        <td>
-                            <span class="badge 
-                            {% if stat.health_score >= 80 %}bg-success
-                            {% elif stat.health_score >= 50 %}bg-warning
-                            {% else %}bg-danger{% endif %}">
-                                {{ stat.health_score }} %
-                            </span>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-            {% else %}
-            <p class="text-muted">Aucune donnée collectée.</p>
-            {% endif %}
+            <div class="col-md-6">
+                <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 1rem 1.2rem;">
+                    <table class="table table-dark-premium table-sm mb-0">
+                        <tbody>
+                            <tr><th>Ping</th><td class="text-white">{{ stat.ping_ms|default:"-" }} ms</td></tr>
+                            <tr><th>Jitter</th><td class="text-white">{{ stat.jitter_ms|default:"-" }} ms</td></tr>
+                            <tr><th>Pertes paquets</th><td class="text-white">{{ stat.packet_loss|default:"0" }} %</td></tr>
+                            <tr><th>CPU Load (1m)</th><td class="text-white">{{ stat.cpu_load_1m }}</td></tr>
+                            <tr><th>CPU Load (5m)</th><td class="text-white">{{ stat.cpu_load_5m }}</td></tr>
+                            <tr><th>RAM</th><td class="text-white">{{ stat.ram_used_mb }} / {{ stat.ram_total_mb }} MB</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 1rem 1.2rem;">
+                    <table class="table table-dark-premium table-sm mb-0">
+                        <tbody>
+                            <tr><th>Inodes</th><td class="text-white">{{ stat.inode_usage }} %</td></tr>
+                            <tr><th>Erreurs RX</th><td class="text-white">{{ stat.errors_in }}</td></tr>
+                            <tr><th>Erreurs TX</th><td class="text-white">{{ stat.errors_out }}</td></tr>
+                            <tr><th>Drops RX</th><td class="text-white">{{ stat.drops_in }}</td></tr>
+                            <tr><th>Drops TX</th><td class="text-white">{{ stat.drops_out }}</td></tr>
+                            <tr>
+                                <th>Score Santé</th>
+                                <td>
+                                    <span class="badge {% if stat.health_score >= 80 %}bg-success{% elif stat.health_score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                        {{ stat.health_score }} %
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
+        {% else %}
+        <p class="text-muted"><i class="fas fa-circle-notch fa-spin me-2"></i>Aucune donnée collectée.</p>
+        {% endif %}
     </div>
-    <!-- 🚨 Incidents actifs -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h5>🚨 Incidents actifs</h5>
+    <!-- 🚨 Incidents -->
+    <div class="premium-card p-4">
+        <h5><i class="fas fa-exclamation-triangle me-2 text-warning"></i>Incidents Actifs</h5>
+        {% if incidents %}
+        <ul class="list-group list-group-flush">
+            {% for i in incidents %}
+            <li class="list-group-item d-flex justify-content-between align-items-start" style="background: transparent; border-color: rgba(255,255,255,0.06); color: #cbd5e1;">
+                <div>
+                    <strong class="text-white">{{ i.titre }}</strong>
+                    <div><small class="text-muted">{{ i.description|default:"Aucune description" }}</small></div>
+                </div>
+                <span class="badge bg-danger ms-3" style="white-space: nowrap;">{{ i.niveau }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="mb-0 text-success">
+            <i class="fas fa-check-circle me-2"></i>Aucun incident actif sur cet équipement.
+        </p>
+        {% endif %}
 
-            {% if incidents %}
-            <ul class="list-group">
-                {% for i in incidents %}
-                <li class="list-group-item">
-                    <strong>{{ i.titre }}</strong>
-                    <span class="badge bg-danger">{{ i.niveau }}</span>
-                    <br>
-                    <small class="text-muted">
-                        {{ i.description|default:"Aucune description" }}
-                    </small>
-                </li>
-                {% endfor %}
-            </ul>
-            {% else %}
-            <p class="text-muted mb-0">
-                ✅ Aucun incident actif sur cet équipement.
-            </p>
-            {% endif %}
-        </div>
-        <h5 class="mt-4">🕒 Historique des incidents</h5>
-        <ul class="list-group">
+        <h5 class="mt-4"><i class="fas fa-history me-2"></i>Historique des Incidents</h5>
+        <ul class="list-group list-group-flush">
             {% for i in equipement.incidents.all %}
-            <li class="list-group-item">
-                <strong>{{ i.titre }}</strong>
-                —
+            <li class="list-group-item" style="background: transparent; border-color: rgba(255,255,255,0.06); color: #cbd5e1;">
+                <div class="d-flex justify-content-between">
+                    <strong class="text-white">{{ i.titre }}</strong>
+                    {% if i.statut == "résolu" %}
+                    <span class="badge bg-success">Résolu</span>
+                    {% else %}
+                    <span class="badge bg-danger">En cours</span>
+                    {% endif %}
+                </div>
                 {% if i.statut == "résolu" %}
-                <span class="badge bg-success">Résolu</span>
-                <br>
-                <small>
-                    {{ i.date_debut }} → {{ i.date_resolution }}
-                </small>
+                <small class="text-muted"><i class="fas fa-calendar me-1"></i>{{ i.date_debut }} → {{ i.date_resolution }}</small>
                 {% else %}
-                <span class="badge bg-danger">En cours</span>
-                <br>
-                <small>Depuis {{ i.date_debut }}</small>
+                <small class="text-muted"><i class="fas fa-clock me-1"></i>Depuis {{ i.date_debut }}</small>
                 {% endif %}
             </li>
             {% endfor %}
@@ -316,102 +346,86 @@
 
 
     <!-- ⚙️ Commandes -->
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0">⚙️ Commandes</h5>
-                <div>
-                    <a href="{% url 'liste_planifications_equipement' equipement.id %}" class="btn btn-sm btn-outline-info">
-                        📋 Voir les planifications
-                    </a>
-                    <a href="{% url 'planifier_commande_equipement' equipement.id %}" class="btn btn-sm btn-outline-primary">
-                        📅 Planifier une commande
-                    </a>
-                </div>
+    <div class="premium-card p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="mb-0"><i class="fas fa-terminal me-2"></i>Commandes SSH / Ansible</h5>
+            <div class="d-flex gap-2">
+                <a href="{% url 'liste_planifications_equipement' equipement.id %}" class="btn btn-sm" style="background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.3); color: #38bdf8; border-radius: 8px;">
+                    <i class="fas fa-list-alt me-1"></i> Planifications
+                </a>
+                <a href="{% url 'planifier_commande_equipement' equipement.id %}" class="btn btn-sm" style="background: rgba(14, 165, 233, 0.2); border: 1px solid rgba(14, 165, 233, 0.4); color: #7dd3fc; border-radius: 8px;">
+                    <i class="fas fa-calendar-plus me-1"></i> Planifier
+                </a>
             </div>
+        </div>
 
-            <!-- 🔍 Barre de recherche -->
-            <form method="get" class="mb-4">
-                <div class="input-group shadow-sm">
-                    <input type="text" name="q_cmd" class="form-control" placeholder="Rechercher par nom, rôle ou commande..." value="{{ request.GET.q_cmd }}">
-                    <button class="btn btn-primary" type="submit">🔍 Rechercher</button>
-                    {% if request.GET.q_cmd %}
-                    <a href="?" class="btn btn-outline-secondary">Réinitialiser</a>
-                    {% endif %}
-                </div>
-            </form>
-
-            {% if commandes %}
-            <div class="row">
-                {% for cmd in commandes %}
-                <div class="col-md-4 mb-3">
-                    <div class="card h-100 shadow-sm border-0 bg-light">
-                        <div class="card-body">
-                            <h6 class="fw-bold">{{ cmd.nom }}</h6>
-                            <p class="small text-muted mb-3" style="min-height: 40px;">
-                                {{ cmd.description|truncatewords:20 }}
-                            </p>
-                            <form method="post" action="{% url 'executer_commande' equipement.id cmd.id %}">
-                                {% csrf_token %}
-                                <button class="btn btn-sm btn-success w-100 shadow-sm">
-                                    ▶️ Exécuter
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-
-            <!-- 📄 Pagination -->
-            {% if commandes.has_other_pages %}
-            <nav aria-label="Pagination des commandes" class="mt-4">
-                <ul class="pagination pagination-sm justify-content-center">
-                    {% if commandes.has_previous %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ commandes.previous_page_number }}{% if request.GET.q_cmd %}&q_cmd={{ request.GET.q_cmd }}{% endif %}">Précédent</a>
-                    </li>
-                    {% else %}
-                    <li class="page-item disabled"><span class="page-link text-muted">Précédent</span></li>
-                    {% endif %}
-                    {% for i in commandes.paginator.page_range %}
-                        {% if i >= commandes.number|add:-2 and i <= commandes.number|add:2 %}
-                            {% if i == commandes.number %}
-                                <li class="page-item active" aria-current="page">
-                                    <span class="page-link">{{ i }}</span>
-                                </li>
-                            {% else %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ i }}{% if request.GET.q_cmd %}&q_cmd={{ request.GET.q_cmd }}{% endif %}">
-                                        {{ i }}
-                                    </a>
-                                </li>
-                            {% endif %}
-                        {% endif %}
-                    {% endfor %}
-
-                        {% if commandes.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ commandes.next_page_number }}{% if request.GET.q_cmd %}&q_cmd={{ request.GET.q_cmd }}{% endif %}">Suivant</a>
-                        </li>
-                        {% else %}
-                        <li class="page-item disabled"><span class="page-link text-muted">Suivant</span></li>
-                        {% endif %}
-                </ul>
-            </nav>
-            {% endif %}
-
-            {% else %}
-            <div class="text-center py-4">
-                <p class="text-muted">
-                    Aucune commande trouvée. Tentez une autre recherche.
-                </p>
+        <!-- 🔍 Barre de recherche -->
+        <form method="get" class="mb-4">
+            <div class="input-group" style="background: transparent;">
+                <input type="text" name="q_cmd" class="form-control" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #f1f5f9; border-radius: 8px 0 0 8px;" placeholder="Rechercher par nom, rôle ou commande..." value="{{ request.GET.q_cmd }}">
+                <button class="btn" type="submit" style="background: linear-gradient(135deg, #0ea5e9, #2563eb); color: white; border-radius: 0 8px 8px 0;"><i class="fas fa-search"></i></button>
                 {% if request.GET.q_cmd %}
-                <a href="?" class="btn btn-sm btn-link">Voir toutes les commandes</a>
+                <a href="?" class="btn ms-2" style="background: rgba(51,65,85,0.5); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; border-radius: 8px;">Réinitialiser</a>
                 {% endif %}
             </div>
+        </form>
+
+        {% if commandes %}
+        <div class="row g-3">
+            {% for cmd in commandes %}
+            <div class="col-md-4">
+                <div class="h-100 p-3" style="background: rgba(15,23,42,0.5); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; transition: all 0.2s;" onmouseover="this.style.borderColor='rgba(56,189,248,0.3)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.07)'">
+                    <h6 class="fw-bold text-white mb-2">
+                        <i class="fas fa-hashtag me-1" style="color: #38bdf8;"></i> {{ cmd.nom }}
+                    </h6>
+                    <p class="small text-muted mb-3" style="min-height: 40px; line-height: 1.5;">{{ cmd.description|truncatewords:20 }}</p>
+                    <form method="post" action="{% url 'executer_commande' equipement.id cmd.id %}">
+                        {% csrf_token %}
+                        <button class="btn btn-sm w-100" style="background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); color: #4ade80; border-radius: 8px;">
+                            <i class="fas fa-play me-1"></i> Exécuter
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- 📄 Pagination -->
+        {% if commandes.has_other_pages %}
+        <nav aria-label="Pagination des commandes" class="mt-4">
+            <ul class="pagination pagination-sm justify-content-center">
+                {% if commandes.has_previous %}
+                <li class="page-item"><a class="page-link" style="background: rgba(30,41,59,0.8); border-color: rgba(255,255,255,0.1); color: #94a3b8;" href="?page={{ commandes.previous_page_number }}{% if request.GET.q_cmd %}&q_cmd={{ request.GET.q_cmd }}{% endif %}">Précédent</a></li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link" style="background: rgba(15,23,42,0.5); border-color: rgba(255,255,255,0.05); color: #475569;">Précédent</span></li>
+                {% endif %}
+                {% for i in commandes.paginator.page_range %}
+                    {% if i >= commandes.number|add:-2 and i <= commandes.number|add:2 %}
+                        {% if i == commandes.number %}
+                            <li class="page-item active" aria-current="page"><span class="page-link" style="background: #0ea5e9; border-color: #0ea5e9;">{{ i }}</span></li>
+                        {% else %}
+                            <li class="page-item"><a class="page-link" style="background: rgba(30,41,59,0.8); border-color: rgba(255,255,255,0.1); color: #94a3b8;" href="?page={{ i }}{% if request.GET.q_cmd %}&q_cmd={{ request.GET.q_cmd }}{% endif %}">{{ i }}</a></li>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+                {% if commandes.has_next %}
+                <li class="page-item"><a class="page-link" style="background: rgba(30,41,59,0.8); border-color: rgba(255,255,255,0.1); color: #94a3b8;" href="?page={{ commandes.next_page_number }}{% if request.GET.q_cmd %}&q_cmd={{ request.GET.q_cmd }}{% endif %}">Suivant</a></li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link" style="background: rgba(15,23,42,0.5); border-color: rgba(255,255,255,0.05); color: #475569;">Suivant</span></li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-search fa-2x mb-3" style="color: #475569;"></i>
+            <p class="text-muted">Aucune commande trouvée. Tentez une autre recherche.</p>
+            {% if request.GET.q_cmd %}
+            <a href="?" class="btn btn-sm" style="background: rgba(51,65,85,0.5); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; border-radius: 8px;">Voir toutes les commandes</a>
             {% endif %}
         </div>
+        {% endif %}
     </div>
 
 </div>

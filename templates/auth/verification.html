@@ -17,7 +17,11 @@
         color: var(--text-main);
         font-family: 'Segoe UI', sans-serif;
         overflow-x: hidden;
+        overflow-y: auto;
         min-height: 100vh;
+        display: flex;
+        align-items: center;
+        padding: 40px 0;
     }
 
     /* --- 2. CANVAS CIRCUIT BACKGROUND --- */
@@ -32,12 +36,12 @@
 
     /* --- 3. CARTE AVEC BORDURE ANIMÉE (FLUX) --- */
     .tech-border-container {
-        position: absolute;
+        position: relative;
         border-radius: 10px;
         background: var(--bg-core); /* Masque arrière */
-        overflow: hidden;
         padding: 3px; /* Épaisseur de la bordure animée */
         box-shadow: 0 0 40px rgba(14, 165, 233, 0.2);
+        margin: auto;
     }
 
     /* L'animation de rotation (le flux) */

@@ -1817,14 +1817,14 @@ def analyser_incident_ia_view(request, incident_id):
                 "analyse": analyse_brute
             })
         
-        # 2. Fallback Celery (Ollama)
+        # 2. Fallback Celery (Analyse asynchrone)
         incident.analyse_ia_en_cours = True
         incident.save(update_fields=["analyse_ia_en_cours"])
         analyser_incident_task.delay(incident.id)
         
         return JsonResponse({
             "status": "fallback",
-            "message": "Groq indisponible, basculement sur Ollama (Celery)..."
+            "message": "Groq synchrone indisponible, analyse asynchrone en cours (Celery)..."
         })
 
     except Exception as e:

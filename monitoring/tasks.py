@@ -97,6 +97,19 @@ def verifier_statut_equipements():
             )
             ssh.close()
 
+            # Envoi d'email si l'équipement revient en ligne
+            if eq.statut in ["hors ligne", "erreur", "inconnu"]:
+                from django.core.mail import send_mail
+                from django.conf import settings
+                send_mail(
+                    subject=f"✅ Retour en Ligne : {eq.nom} ({eq.adresse_ip})",
+                    message=f"L'équipement {eq.nom} ({eq.adresse_ip}) est de nouveau accessible via Ping et SSH après avoir été '{eq.statut}'.\nHeure: {timezone.now().strftime('%d/%m/%Y %H:%M')}",
+                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'admin@infracontrol.local'),
+                    recipient_list=getattr(settings, 'ADMIN_EMAILS', ['admin@infracontrol.local']),
+                    fail_silently=True
+                )
+                logger.info(f"[ALERT] Email envoyé pour le retour en ligne de {eq.nom}")
+
             eq.statut = "en ligne"
             eq.derniere_verification = timezone.now()
             eq.save(update_fields=["statut", "derniere_verification"])
@@ -104,6 +117,16 @@ def verifier_statut_equipements():
             ok += 1
 
         except Exception as e:
+            if eq.statut == "en ligne":
+                from django.core.mail import send_mail
+                from django.conf import settings
+                send_mail(
+                    subject=f"🚨 Perte de Connexion : {eq.nom}",
+                    message=f"L'équipement {eq.nom} ({eq.adresse_ip}) ne répond plus.\nErreur: {str(e)}",
+                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'admin@infracontrol.local'),
+                    recipient_list=getattr(settings, 'ADMIN_EMAILS', ['admin@infracontrol.local']),
+                    fail_silently=True
+                )
             eq.statut = "erreur"
             eq.derniere_verification = timezone.now()
             eq.save(update_fields=["statut", "derniere_verification"])
@@ -434,3 +457,119 @@ def envoi_resume_quotidien():
     except Exception as e:
         logger.error(f"[ALERTE CENTRALISÉE] Échec de l'envoi email : {e}", exc_info=True)
         return str(e)
+
+
+@shared_task(name="monitoring.tasks.envoyer_recapitulatif_journalier_massif")
+def envoyer_recapitulatif_journalier_massif():
+    """
+    Envoie un rapport récapitulatif complet de tous les équipements réseau une fois par jour.
+    Agrége les pannes, santés moyennes, etc.
+    """
+    from monitoring.models import EquipementReseau, Incident
+    from django.core.mail import EmailMultiAlternatives
+    from django.template.loader import render_to_string
+    from django.utils import timezone
+    from django.conf import settings
+    from django.db.models import Avg
+
+    equipements = EquipementReseau.objects.all()
+    incidents_24h = Incident.objects.filter(date_debut__gte=timezone.now() - timezone.timedelta(days=1))
+    
+    total = equipements.count()
+    en_ligne = equipements.filter(statut="en ligne").count()
+    moyenne_cpu = equipements.aggregate(Avg('cpu_usage'))['cpu_usage__avg'] or 0
+    moyenne_ram = equipements.aggregate(Avg('ram_usage'))['ram_usage__avg'] or 0
+    sante_globale = max(0, 100 - ((moyenne_cpu + moyenne_ram) / 2)) # Pseudo-score de santé
+    
+    total_incidents = incidents_24h.count()
+    incidents_critiques = incidents_24h.filter(niveau='critique').count()
+
+    context = {
+        'date': timezone.now().strftime('%d/%m/%Y'),
+        'total': total,
+        'en_ligne': en_ligne,
+        'hors_ligne': total - en_ligne,
+        'moyenne_sante': round(sante_globale, 1),
+        'total_incidents_24h': total_incidents,
+        'incidents_critiques': incidents_critiques,
+        'equipements': equipements
+    }
+
+    try:
+        # Création des lignes de détails pour chaque équipement
+        details_html = ""
+        for eq in equipements:
+            cpu_color = "red" if (eq.cpu_usage or 0) > 85 else ("orange" if (eq.cpu_usage or 0) > 60 else "green")
+            ram_color = "red" if (eq.ram_usage or 0) > 85 else ("orange" if (eq.ram_usage or 0) > 60 else "green")
+            statut_badge = "<span style='color:green'>En ligne</span>" if eq.statut == "en ligne" else "<span style='color:red'>Hors ligne/Erreur</span>"
+            
+            details_html += f"""
+            <tr>
+                <td style="padding:8px; border:1px solid #ddd;">{eq.nom}</td>
+                <td style="padding:8px; border:1px solid #ddd;">{eq.adresse_ip} ({eq.type_equipement})</td>
+                <td style="padding:8px; border:1px solid #ddd;">{statut_badge}</td>
+                <td style="padding:8px; border:1px solid #ddd; color:{cpu_color}"><b>{eq.cpu_usage or 0}%</b></td>
+                <td style="padding:8px; border:1px solid #ddd; color:{ram_color}"><b>{eq.ram_usage or 0}%</b></td>
+            </tr>
+            """
+
+        html_content = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; color: #333; background-color:#f9f9fa; padding:20px;">
+            <div style="max-width:800px; margin:0 auto; background:#ffffff; border-radius:10px; overflow:hidden; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                <div style="background-color:#0f172a; color:#0ea5e9; padding:20px; text-align:center;">
+                    <h2 style="margin:0;">InfraControl - Résumé Exécutif Détaillé</h2>
+                    <p style="margin:5px 0 0; color:#cbd5e1;">Rapport Généré le {context['date']} à {timezone.now().strftime('%H:%M')} (Heure du Conteneur DB)</p>
+                </div>
+                
+                <div style="padding:20px;">
+                    <h3 style="border-bottom: 2px solid #e2e8f0; padding-bottom:10px;">📉 Indicateurs Globaux</h3>
+                    <ul style="list-style:none; padding:0; display:flex; gap:20px; flex-wrap:wrap;">
+                        <li style="background:#f1f5f9; padding:15px; border-radius:8px; flex:1;">Total: <b>{context['total']}</b></li>
+                        <li style="background:#dcfce7; padding:15px; border-radius:8px; flex:1;">Actifs: <b style="color:green">{context['en_ligne']}</b></li>
+                        <li style="background:#fee2e2; padding:15px; border-radius:8px; flex:1;">Hors Ligne: <b style="color:red">{context['hors_ligne']}</b></li>
+                        <li style="background:#e0f2fe; padding:15px; border-radius:8px; flex:1;">Santé: <b>{context['moyenne_sante']}%</b></li>
+                    </ul>
+
+                    <h3 style="border-bottom: 2px solid #e2e8f0; padding-bottom:10px; margin-top:30px;">🚨 Incidents Récents (24H)</h3>
+                    <p>Total des pannes : <b>{context['total_incidents_24h']}</b> (dont <b style="color:red">{context['incidents_critiques']} critiques</b>).</p>
+                    
+                    <h3 style="border-bottom: 2px solid #e2e8f0; padding-bottom:10px; margin-top:30px;">💻 Statistiques en Temps Réel par Équipement</h3>
+                    <table style="width:100%; border-collapse: collapse; text-align:left; margin-top:15px;">
+                        <thead style="background:#0ea5e9; color:#ffffff;">
+                            <tr>
+                                <th style="padding:10px; border:1px solid #ddd;">Nom</th>
+                                <th style="padding:10px; border:1px solid #ddd;">IP / Type</th>
+                                <th style="padding:10px; border:1px solid #ddd;">Statut</th>
+                                <th style="padding:10px; border:1px solid #ddd;">CPU</th>
+                                <th style="padding:10px; border:1px solid #ddd;">RAM</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {details_html}
+                        </tbody>
+                    </table>
+                    
+                    <p style="margin-top:30px; font-size:12px; color:#64748b; text-align:center;">
+                        Ce rapport est généré automatiquement par le conteneur InfraControl.<br>
+                        Veuillez vous connecter à l'<a href="http://localhost:8010">Interface d'Administration</a> pour intervenir.
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        msg = EmailMultiAlternatives(
+            f"📊 InfraControl - Résumé Exécutif Journalier ({context['date']})",
+            "Veuillez lire la version HTML de ce message.",
+            getattr(settings, 'DEFAULT_FROM_EMAIL', 'admin@infracontrol.local'),
+            getattr(settings, 'ADMIN_EMAILS', ['admin@infracontrol.local'])
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+        logger.info("[RECAP JOURNALIER] Email massif de résumé quotidien envoyé avec succès.")
+        return "Succès de l'envoi"
+    except Exception as e:
+        logger.error(f"[RECAP JOURNALIER ERROR] {e}")
+        return f"Erreur: {str(e)}"

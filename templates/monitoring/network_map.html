@@ -204,7 +204,9 @@
         </div>
 
         <div class="text-center mb-4">
-            <img id="sb-icon" src="" style="width: 80px; height: 80px;" class="mb-2">
+            <div id="sb-icon-container" class="mb-3 d-flex justify-content-center align-items-center mx-auto shadow" style="width: 80px; height: 80px; border-radius: 50%; background: rgba(14, 165, 233, 0.1); border: 2px solid var(--accent-cyan); color: var(--accent-cyan);">
+                <i id="sb-icon" class="fas fa-server fa-2x"></i>
+            </div>
             <div id="sb-status-badge" class="badge rounded-pill d-block mx-auto" style="width: fit-content;">En ligne</div>
         </div>
 
@@ -246,15 +248,16 @@
 
 <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 <script>
-    const IMG_DIR = "https://img.icons8.com/color/96/";
-    const ICONS = {
-        'routeur': 'router.png',
-        'switch': 'switch.png',
-        'serveur': 'server.png',
-        'serveur_win': 'windows-10.png',
-        'pc_win': 'laptop.png',
-        'parefeu': 'firewall.png',
-        'default': 'network-card.png'
+    // 🔹 Dictionnaire d'icônes FontAwesome et Classes CSS
+    const TYPE_STYLES = {
+        'routeur': { iconCode: '\uf0e8', iconClass: 'fa-sitemap', color: '#0ea5e9' },
+        'switch': { iconCode: '\uf6ff', iconClass: 'fa-network-wired', color: '#8b5cf6' },
+        'serveur': { iconCode: '\uf233', iconClass: 'fa-server', color: '#10b981' },
+        'serveur_win': { iconCode: '\uf17a', iconClass: 'fa-windows', color: '#3b82f6' },
+        'pc_win': { iconCode: '\uf108', iconClass: 'fa-desktop', color: '#64748b' },
+        'parefeu': { iconCode: '\uf132', iconClass: 'fa-shield-halved', color: '#ef4444' },
+        'wifi': { iconCode: '\uf1eb', iconClass: 'fa-wifi', color: '#f59e0b' },
+        'autre': { iconCode: '\uf2db', iconClass: 'fa-microchip', color: '#94a3b8' }
     };
 
     let network, nodes, edges;
@@ -266,13 +269,26 @@
         const response = await fetch("{% url 'network_map_api' %}");
         const data = await response.json();
 
-        nodes = new vis.DataSet(data.nodes.map(n => ({
-            ...n,
-            image: IMG_DIR + (ICONS[n.group] || ICONS['default']),
-            shape: 'image',
-            size: 35,
-            font: { color: '#E2E8F0', size: 12, face: 'Inter', strokeWidth: 4, strokeColor: 'rgba(15, 23, 42, 0.8)' }
-        })));
+        nodes = new vis.DataSet(data.nodes.map(n => {
+            const style = TYPE_STYLES[n.group] || TYPE_STYLES['autre'];
+            const isOffline = n.status === 'hors ligne';
+            const nodeColor = isOffline ? '#ef4444' : style.color;
+
+            return {
+                ...n,
+                shape: 'icon',
+                icon: {
+                    face: '"Font Awesome 6 Free"',
+                    code: style.iconCode,
+                    size: 45,
+                    color: nodeColor,
+                    weight: "900"
+                },
+                // On passe la classe pour l'UI de la Sidebar
+                sbClass: style.iconClass,
+                font: { color: '#E2E8F0', size: 14, face: 'Inter', strokeWidth: 3, strokeColor: 'rgba(15, 23, 42, 0.9)', vadjust: 10 }
+            };
+        }));
 
         edges = new vis.DataSet(data.links.map(l => ({
             ...l,
@@ -325,7 +341,13 @@
 
     function showSidebar(node) {
         document.getElementById("sb-title").innerText = node.label;
-        document.getElementById("sb-icon").src = node.image;
+        
+        // Mise à jour de l'icône dans la sidebar
+        const iconEl = document.getElementById("sb-icon");
+        iconEl.className = `fas ${node.sbClass} fa-2x`;
+        document.getElementById("sb-icon-container").style.color = node.icon.color;
+        document.getElementById("sb-icon-container").style.borderColor = node.icon.color;
+
         document.getElementById("sb-type").innerText = node.metrics.type;
         document.getElementById("sb-ip").innerText = node.metrics.ip;
         document.getElementById("sb-loc").innerText = node.metrics.loc || '-';

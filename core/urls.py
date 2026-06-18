@@ -38,7 +38,7 @@ urlpatterns = [
     # 👤 PROFIL UTILISATEUR
     # ==============================
     path("profil/", views.profile_view, name="profile"),
-    path("dashboard/", views.dashboard_view, name="dashboard"),
+    # path("dashboard/", views.dashboard_view, name="dashboard"),
     path("profil/modifier/", views.edit_profile, name="edit_profile"),
     path('compte/gele/', views.page_compte_gele_view, name='compte_gele'),
     path('compte/reactiver/', views.recuperer_compte_view, name='recuperer_compte'),

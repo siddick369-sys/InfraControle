@@ -24,15 +24,14 @@ def analyser_incident_ia(
     analyse_cause=True,
     plan_remediation=True,
     mode_formation=False,
-    rapport_executif=False,
-    modele="llama3.1:latest",
-    provider=None
+    rapport_executif=False
 ):
     """
     Orchestrateur IA central Infracontrole
+    Le provider et le modèle sont maintenant gérés par aiengine.client (via decouple)
     """
 
-    logger.info(f"[IA] Analyse incident #{incident.id} (provider={provider})")
+    logger.info(f"[IA] Analyse incident #{incident.id} via Oracle (Groq)")
 
     # ==========================
     # 🧾 CONTEXTE
@@ -50,7 +49,7 @@ def analyser_incident_ia(
     if analyse_cause:
         try:
             prompt = prompt_cause_racine(contexte)
-            reponse = appeler_ia(modele, prompt, provider=provider)
+            reponse = appeler_ia(prompt, is_json=True)
             resultats["cause_racine"] = _safe_json(reponse)
         except Exception as e:
             logger.error("[IA] Erreur cause racine", exc_info=True)
@@ -62,7 +61,7 @@ def analyser_incident_ia(
     if plan_remediation:
         try:
             prompt = prompt_remediation(contexte)
-            reponse = appeler_ia(modele, prompt, provider=provider)
+            reponse = appeler_ia(prompt, is_json=True)
             resultats["remediation"] = _safe_json(reponse)
         except Exception as e:
             logger.error("[IA] Erreur remédiation", exc_info=True)
@@ -74,7 +73,7 @@ def analyser_incident_ia(
     if mode_formation:
         try:
             prompt = prompt_formation_junior(contexte)
-            reponse = appeler_ia(modele, prompt, provider=provider)
+            reponse = appeler_ia(prompt, is_json=True)
             resultats["formation"] = _safe_json(reponse)
         except Exception as e:
             logger.error("[IA] Erreur formation", exc_info=True)

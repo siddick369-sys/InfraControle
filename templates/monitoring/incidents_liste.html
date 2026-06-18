@@ -176,9 +176,8 @@ async function analyserAvecIA(incidentId) {
             // ✅ Succès immédiat (Groq)
             loading.style.display = "none";
             fetchIdAnalyse(incidentId); // Appel unique pour récupérer le formaté
-        } else if (data.status === "fallback") {
-            // 🔄 Fallback Celery (Ollama)
-            loading.textContent = "⏳ Groq indisponible. Bascule sur Ollama (Celery)...";
+            // Fallback Celery (Analyse asynchrone)
+            loading.textContent = "⏳ Groq indisponible. Analyse asynchrone lancée (Celery)...";
             pollingInterval = setInterval(() => fetchIdAnalyse(incidentId), 3000);
         } else {
             loading.textContent = "❌ " + (data.message || "Erreur inconnue");

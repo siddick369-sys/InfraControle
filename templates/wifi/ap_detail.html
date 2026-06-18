@@ -17,9 +17,9 @@
                 <div class="card-header border-secondary bg-transparent d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i> Informations AP</h5>
                     {% if ap.statut == 'up' %}
-                    <span class="badge bg-success">ONLINE</span>
+                    <span id="ap-status" class="badge bg-success">ONLINE</span>
                     {% else %}
-                    <span class="badge bg-danger">OFFLINE</span>
+                    <span id="ap-status" class="badge bg-danger">OFFLINE</span>
                     {% endif %}
                 </div>
                 <div class="card-body">
@@ -40,11 +40,11 @@
                         </li>
                         <li class="list-group-item bg-transparent border-secondary text-light d-flex justify-content-between">
                             <span class="text-muted">CPU</span>
-                            <span class="{% if ap.cpu_usage > 80 %}text-danger{% else %}text-success{% endif %}">{{ ap.cpu_usage }}%</span>
+                            <span id="ap-cpu" class="{% if ap.cpu_usage > 80 %}text-danger{% else %}text-success{% endif %}">{{ ap.cpu_usage }}%</span>
                         </li>
                         <li class="list-group-item bg-transparent border-secondary text-light d-flex justify-content-between">
                             <span class="text-muted">Mémoire</span>
-                            <span>{{ ap.ram_usage }}%</span>
+                            <span id="ap-ram">{{ ap.ram_usage }}%</span>
                         </li>
                     </ul>
                 </div>
@@ -81,7 +81,7 @@
                                     <th>Dernière vue</th>
                                 </tr>
                             </thead>
-                            <tbody class="border-secondary">
+                            <tbody id="ap-clients-table" class="border-secondary">
                                 {% for client in clients %}
                                 <tr>
                                     <td class="ps-4 fw-bold text-info">{{ client.mac_adresse }}</td>
@@ -120,7 +120,7 @@
         const data5 = [{% for m in metric_history %}{{ m.clients_5ghz }},{% endfor %}];
 
         const ctx = document.getElementById('apHistoryChart').getContext('2d');
-        new Chart(ctx, {
+        const apChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: labels,
@@ -155,6 +155,67 @@
                 }
             }
         });
+
+        // AJAX Update function (Real-time tracking every 5s)
+        setInterval(async () => {
+            try {
+                const response = await fetch(`/wifi/api/ap/{{ ap.id }}/metrics/`);
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Update graph if timestamp is new
+                    if (apChart.data.labels[apChart.data.labels.length - 1] !== data.timestamp) {
+                        apChart.data.labels.push(data.timestamp);
+                        apChart.data.datasets[0].data.push(data.clients_2ghz);
+                        apChart.data.datasets[1].data.push(data.clients_5ghz);
+
+                        if (apChart.data.labels.length > 24) {
+                            apChart.data.labels.shift();
+                            apChart.data.datasets[0].data.shift();
+                            apChart.data.datasets[1].data.shift();
+                        }
+                        apChart.update('none'); 
+                    }
+                    
+                    // Update status and resources
+                    const statusEl = document.getElementById('ap-status');
+                    statusEl.className = 'badge ' + (data.statut === 'up' ? 'bg-success' : 'bg-danger');
+                    statusEl.innerText = (data.statut).toUpperCase();
+                    
+                    const cpuEl = document.getElementById('ap-cpu');
+                    cpuEl.innerText = data.cpu_usage + '%';
+                    cpuEl.className = data.cpu_usage > 80 ? 'text-danger' : 'text-success';
+                    
+                    document.getElementById('ap-ram').innerText = data.ram_usage + '%';
+                    
+                    // Update connected clients table dynamically
+                    const tbody = document.getElementById('ap-clients-table');
+                    if (data.clients_list.length > 0) {
+                        tbody.innerHTML = data.clients_list.map(c => `
+                            <tr>
+                                <td class="ps-4 fw-bold text-info">${c.mac}</td>
+                                <td>${c.ip}</td>
+                                <td><i class="fas fa-mobile-screen me-1 opacity-50"></i> ${c.device}</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-2">${c.rssi} dBm</div>
+                                        <div class="progress flex-grow-1" style="width: 60px; height: 4px;">
+                                            <div class="progress-bar ${c.rssi < -70 ? 'bg-danger' : c.rssi < -50 ? 'bg-warning' : 'bg-success'}" 
+                                                 style="width: ${c.rssi + 100}%;"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-muted smaller">${c.last_seen}</td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Aucun client connecté pour le moment.</td></tr>';
+                    }
+                }
+            } catch (err) {
+                console.error("Erreur de mise à jour AJAX :", err);
+            }
+        }, 5000);
     });
 </script>
 {% endblock %}
