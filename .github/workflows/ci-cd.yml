@@ -1,0 +1,40 @@
+name: InfraControl CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+    - name: Ensure Code Safety
+      # Placeholder for automated python testing before allowing deploy
+      run: python manage.py check
+
+  deploy_local_vm:
+    needs: test
+    runs-on: self-hosted
+    steps:
+    - name: Checkout Code from Github
+      uses: actions/checkout@v3
+      
+    - name: Deploy with Docker Compose
+      run: |
+        echo "Lancement du deploiment via Docker Compose..."
+        docker-compose down
+        docker-compose up -d --build
+        
+    - name: Apply Migrations & Management Commands
+      run: |
+        docker-compose exec -T django python manage.py migrate --noinput
+        docker-compose exec -T django python manage.py collectstatic --noinput
+        docker-compose exec -T django python manage.py add_remediations
+        echo "Déploiement terminé avec succès sur la VM locale !"
