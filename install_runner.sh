@@ -17,8 +17,12 @@ echo "4ef2f25285f0ae4477f1fe1e346db76d2f3ebf03824e2ddd1973a2819bf6c8cf  actions-
 echo "[*] Extraction de l'installateur..."
 tar xzf ./actions-runner-linux-x64-2.335.1.tar.gz
 
+echo "[*] Le token d'enregistrement expire après 1 heure !"
+echo "Veuillez aller sur GitHub -> Settings -> Actions -> Runners -> New self-hosted runner"
+read -p "[>] Collez votre nouveau TOKEN ici (ex: AB2F5...) : " GITHUB_TOKEN
+
 echo "[*] Configuration de l'agent GitHub..."
-./config.sh --url https://github.com/siddick369-sys/InfraControle --token B4B2F5XFRH4BN7FSVIIDXCLKGQIC2 --unattended --replace
+./config.sh --url https://github.com/siddick369-sys/InfraControle --token $GITHUB_TOKEN --unattended --replace
 
 echo "[*] Installation du service systemd..."
 sudo ./svc.sh install

@@ -202,7 +202,7 @@ while true; do
             # Clonage du depot Github (s'il n'est pas deja la)
             if [ ! -f "docker-compose.yml" ]; then
                 echo -e "   ${YELLOW}[*] Telechargement d'InfraControl depuis Github...${NC}"
-                git clone https://github.com/VOTRE_COMPTE/infracontrol.git . || echo -e "   ${RED}Erreur Git clone${NC}"
+                git clone https://github.com/siddick369-sys/InfraControle.git . || echo -e "   ${RED}Erreur Git clone${NC}"
             fi
 
             docker-compose up -d --remove-orphans
