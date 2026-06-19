@@ -200,7 +200,7 @@ while true; do
             echo -e "   ${BLUE}[*] Deploiement des services...${NC}"
             
             # Clonage du depot Github (s'il n'est pas deja la)
-            if [ ! -f "docker compose.yml" ]; then
+            if [ ! -f "docker-compose.yml" ]; then
                 echo -e "   ${YELLOW}[*] Telechargement d'InfraControl depuis Github...${NC}"
                 git clone https://github.com/siddick369-sys/InfraControle.git . || echo -e "   ${RED}Erreur Git clone${NC}"
             fi

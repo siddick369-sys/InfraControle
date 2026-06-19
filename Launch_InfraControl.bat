@@ -238,7 +238,7 @@ call :CHECK_DOCKER
 echo.
 echo    [*] Deploiement automatise des services InfraControl...
 
-if not exist "docker compose.yml" (
+if not exist "docker-compose.yml" (
     echo    [*] Telechargement du depot Github...
     git clone https://github.com/siddick369-sys/InfraControle.git .
 )
