@@ -73,7 +73,7 @@ check_prerequisites() {
               
             echo "   [+] Installation de Docker..."
             sudo apt update
-            sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+            sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker compose-plugin
             
             echo "   [+] Activation du service Docker..."
             sudo systemctl enable docker
@@ -87,7 +87,7 @@ check_prerequisites() {
             
             echo -e "   ${GREEN}[SUCCESS] Docker installé. Reconnectez-vous pour appliquer les permissions.${NC}"
         elif command -v dnf &> /dev/null; then
-            sudo dnf install -y docker docker-compose
+            sudo dnf install -y docker docker compose
             sudo systemctl enable docker
             sudo systemctl start docker
             sudo usermod -aG docker "$USER"
@@ -122,7 +122,7 @@ django_auth() {
     echo ""
 
     # Verifier que le conteneur django tourne
-    if ! docker-compose ps --services --filter "status=running" 2>/dev/null | grep -q "django"; then
+    if ! docker compose ps --services --filter "status=running" 2>/dev/null | grep -q "django"; then
         echo -e "   ${RED}[ERREUR] Le serveur Web est eteint. Demarrez-le d'abord [Option 1].${NC}"
         return 1
     fi
@@ -133,7 +133,7 @@ django_auth() {
     echo ""
 
     echo -e "   [*] Validation des credentials..."
-    if docker-compose exec -T -e BATCH_USER="$batch_usr" -e BATCH_PASS="$batch_pwd" django python -c \
+    if docker compose exec -T -e BATCH_USER="$batch_usr" -e BATCH_PASS="$batch_pwd" django python -c \
         "import os,django;os.environ.setdefault('DJANGO_SETTINGS_MODULE','InfraContol.settings');django.setup();from django.contrib.auth import authenticate;u=authenticate(username=os.environ.get('BATCH_USER'),password=os.environ.get('BATCH_PASS'));import sys;sys.exit(0) if getattr(u,'is_staff',False) else sys.exit(1)" 2>/dev/null; then
         echo -e "   ${GREEN}[ACCES AUTORISE] Bienvenue, Administrateur $batch_usr.${NC}"
         echo ""
@@ -200,22 +200,22 @@ while true; do
             echo -e "   ${BLUE}[*] Deploiement des services...${NC}"
             
             # Clonage du depot Github (s'il n'est pas deja la)
-            if [ ! -f "docker-compose.yml" ]; then
+            if [ ! -f "docker compose.yml" ]; then
                 echo -e "   ${YELLOW}[*] Telechargement d'InfraControl depuis Github...${NC}"
                 git clone https://github.com/siddick369-sys/InfraControle.git . || echo -e "   ${RED}Erreur Git clone${NC}"
             fi
 
-            docker-compose up -d --remove-orphans
+            docker compose up -d --remove-orphans
             
             echo -e "   ${BLUE}[*] Execution des commandes de gestion Django...${NC}"
-            docker-compose exec -T django python manage.py migrate --noinput || true
-            docker-compose exec -T django python manage.py collectstatic --noinput || true
-            docker-compose exec -T django python manage.py fix_crypto || true
-            docker-compose exec -T django python manage.py generate_demo_data || true
-            docker-compose exec -T django python manage.py commande_reseau || true
-            docker-compose exec -T django python manage.py smart_monitoring || true
-            docker-compose exec -T django python manage.py run_wifi_master_sim || true
-            docker-compose exec -T django python manage.py add_remediations || true
+            docker compose exec -T django python manage.py migrate --noinput || true
+            docker compose exec -T django python manage.py collectstatic --noinput || true
+            docker compose exec -T django python manage.py fix_crypto || true
+            docker compose exec -T django python manage.py generate_demo_data || true
+            docker compose exec -T django python manage.py commande_reseau || true
+            docker compose exec -T django python manage.py smart_monitoring || true
+            docker compose exec -T django python manage.py run_wifi_master_sim || true
+            docker compose exec -T django python manage.py add_remediations || true
 
             echo -e "   ${GREEN}[SUCCESS] Services demarres et configures.${NC}"
             if [ "$HAS_GUI" = true ]; then
@@ -228,7 +228,7 @@ while true; do
         2)
             if django_auth; then
                 echo -e "   ${BLUE}[*] Arret des services...${NC}"
-                docker-compose down
+                docker compose down
                 echo -e "   ${GREEN}[SUCCESS] Services arretes.${NC}"
             fi
             read -p "   Appuyez sur Entree pour continuer..." _
@@ -236,17 +236,17 @@ while true; do
         3)
             if django_auth; then
                 echo -e "   ${BLUE}[*] Redemarrage...${NC}"
-                docker-compose restart
+                docker compose restart
                 echo -e "   ${GREEN}[SUCCESS] Services redemarres.${NC}"
             fi
             read -p "   Appuyez sur Entree pour continuer..." _
             ;;
         4)
-            docker-compose ps
+            docker compose ps
             read -p "   Appuyez sur Entree pour continuer..." _
             ;;
         5)
-            docker-compose logs -f --tail=30
+            docker compose logs -f --tail=30
             ;;
         6)
             docker stats
@@ -288,24 +288,24 @@ while true; do
         14)
             if django_auth; then
                 BACKUP="backup_infracontrol_$(date +%Y%m%d_%H%M%S).sql"
-                docker-compose exec -T postgres pg_dump -U infrauser -d infracontrol -F c > "$BACKUP"
+                docker compose exec -T postgres pg_dump -U infrauser -d infracontrol -F c > "$BACKUP"
                 echo -e "   ${GREEN}[SUCCESS] Sauvegarde : $BACKUP${NC}"
             fi
             read -p "   Appuyez sur Entree pour continuer..." _
             ;;
         15)
             if django_auth; then
-                docker-compose exec postgres psql -U infrauser -d infracontrol
+                docker compose exec postgres psql -U infrauser -d infracontrol
             fi
             ;;
         16)
             if django_auth; then
-                docker-compose exec django bash
+                docker compose exec django bash
             fi
             ;;
         17)
             if django_auth; then
-                docker-compose build --no-cache
+                docker compose build --no-cache
                 echo -e "   ${GREEN}[SUCCESS] Images reconstruites.${NC}"
             fi
             read -p "   Appuyez sur Entree pour continuer..." _
@@ -322,7 +322,7 @@ while true; do
                 echo -e "   ${RED}!!! DESTRUCTION DE TOUTES LES DONNEES !!!${NC}"
                 read -p "   Tapez OUI pour confirmer : " confirm
                 if [ "$confirm" = "OUI" ]; then
-                    docker-compose down -v
+                    docker compose down -v
                     echo -e "   ${GREEN}[SUCCESS] Environnement efface.${NC}"
                 else
                     echo -e "   ${YELLOW}[ANNULE] Aucun fichier efface.${NC}"

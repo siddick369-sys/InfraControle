@@ -179,7 +179,7 @@ echo    Vous devez vous authentifier avec votre compte Web InfraControl.
 echo.
 
 :: Verifier que le conteneur django tourne
-docker-compose ps --services --filter "status=running" 2>nul | findstr /i "django" >nul 2>&1
+docker compose ps --services --filter "status=running" 2>nul | findstr /i "django" >nul 2>&1
 if !errorlevel! neq 0 (
     color 0C
     echo    [ERREUR] Le serveur Web est eteint.
@@ -197,7 +197,7 @@ echo.
 echo.
 
 echo    [*] Validation des credentials via le serveur Web...
-docker-compose exec -T -e BATCH_USER="!batch_usr!" -e BATCH_PASS="!batch_pwd!" django python -c "import os,django;os.environ.setdefault('DJANGO_SETTINGS_MODULE','InfraContol.settings');django.setup();from django.contrib.auth import authenticate;u=authenticate(username=os.environ.get('BATCH_USER'),password=os.environ.get('BATCH_PASS'));import sys;sys.exit(0) if getattr(u,'is_staff',False) else sys.exit(1)"
+docker compose exec -T -e BATCH_USER="!batch_usr!" -e BATCH_PASS="!batch_pwd!" django python -c "import os,django;os.environ.setdefault('DJANGO_SETTINGS_MODULE','InfraContol.settings');django.setup();from django.contrib.auth import authenticate;u=authenticate(username=os.environ.get('BATCH_USER'),password=os.environ.get('BATCH_PASS'));import sys;sys.exit(0) if getattr(u,'is_staff',False) else sys.exit(1)"
 
 if !errorlevel! neq 0 (
     color 0C
@@ -238,25 +238,25 @@ call :CHECK_DOCKER
 echo.
 echo    [*] Deploiement automatise des services InfraControl...
 
-if not exist "docker-compose.yml" (
+if not exist "docker compose.yml" (
     echo    [*] Telechargement du depot Github...
     git clone https://github.com/siddick369-sys/InfraControle.git .
 )
 
-docker-compose up -d --remove-orphans
+docker compose up -d --remove-orphans
 
 echo.
 echo    [*] Application des mises a jour BDD et configurations initiales...
-docker-compose exec -T django python manage.py migrate --noinput
-docker-compose exec -T django python manage.py collectstatic --noinput
+docker compose exec -T django python manage.py migrate --noinput
+docker compose exec -T django python manage.py collectstatic --noinput
 
 echo    [*] Execution des commandes de gestion avancees...
-docker-compose exec -T django python manage.py fix_crypto
-docker-compose exec -T django python manage.py generate_demo_data
-docker-compose exec -T django python manage.py commande_reseau
-docker-compose exec -T django python manage.py smart_monitoring
-docker-compose exec -T django python manage.py run_wifi_master_sim
-docker-compose exec -T django python manage.py add_remediations
+docker compose exec -T django python manage.py fix_crypto
+docker compose exec -T django python manage.py generate_demo_data
+docker compose exec -T django python manage.py commande_reseau
+docker compose exec -T django python manage.py smart_monitoring
+docker compose exec -T django python manage.py run_wifi_master_sim
+docker compose exec -T django python manage.py add_remediations
 echo    [SUCCESS] Toutes les configurations appliquees.
 
 echo.
@@ -285,7 +285,7 @@ if !errorlevel! neq 0 (
     goto MENU
 )
 echo    [*] Arret progressif de la grappe de serveurs...
-docker-compose down
+docker compose down
 echo    [SUCCESS] Services arretes.
 pause
 goto MENU
@@ -298,7 +298,7 @@ if !errorlevel! neq 0 (
     goto MENU
 )
 echo    [*] Redemarrage de l'infrastructure...
-docker-compose restart
+docker compose restart
 echo    [SUCCESS] Services redemarres.
 pause
 goto MENU
@@ -308,7 +308,7 @@ call :CHECK_DOCKER
 echo.
 echo    [*] Etat des Services :
 echo    --------------------------------------------------
-docker-compose ps
+docker compose ps
 echo    --------------------------------------------------
 pause
 goto MENU
@@ -318,7 +318,7 @@ call :CHECK_DOCKER
 echo.
 echo    [*] Logs de l'infrastructure. Appuyez sur Ctrl+C pour quitter.
 echo    --------------------------------------------------
-docker-compose logs -f --tail=30
+docker compose logs -f --tail=30
 pause
 goto MENU
 
@@ -395,7 +395,7 @@ if !errorlevel! neq 0 (
 echo.
 echo    [*] Creation du Backup de la base de donnees...
 set BACKUP_NAME=backup_infracontrol_%date:~-4,4%%date:~-7,2%%date:~-10,2%.sql
-docker-compose exec -T postgres pg_dump -U infrauser -d infracontrol -F c > "%~dp0%BACKUP_NAME%"
+docker compose exec -T postgres pg_dump -U infrauser -d infracontrol -F c > "%~dp0%BACKUP_NAME%"
 echo.
 echo    [SUCCESS] Fichier de sauvegarde cree : %~dp0%BACKUP_NAME%
 pause
@@ -411,7 +411,7 @@ if !errorlevel! neq 0 (
 echo.
 echo    [*] Console PostgreSQL. Tapez \q pour quitter.
 echo    --------------------------------------------------
-docker-compose exec postgres psql -U infrauser -d infracontrol
+docker compose exec postgres psql -U infrauser -d infracontrol
 echo    --------------------------------------------------
 goto MENU
 
@@ -425,7 +425,7 @@ if !errorlevel! neq 0 (
 echo.
 echo    [*] Console Bash Django. Tapez exit pour quitter.
 echo    --------------------------------------------------
-docker-compose exec django bash
+docker compose exec django bash
 echo    --------------------------------------------------
 goto MENU
 
@@ -438,7 +438,7 @@ if !errorlevel! neq 0 (
 )
 echo.
 echo    [*] Reconstruction de l'infrastructure reseau...
-docker-compose build --no-cache
+docker compose build --no-cache
 echo    [SUCCESS] Images reconstruites. Relancez avec l'option [1].
 pause
 goto MENU
@@ -472,7 +472,7 @@ echo    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 echo.
 set /p confirm="    Tapez OUI pour confirmer la destruction de la BDD : "
 if /i "%confirm%"=="OUI" (
-    docker-compose down -v
+    docker compose down -v
     echo    [SUCCESS] Environnement efface.
 ) else (
     echo    [ANNULE] Aucun fichier efface.
